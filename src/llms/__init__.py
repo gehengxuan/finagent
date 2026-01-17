@@ -6,5 +6,5 @@ LLM调用模块
 from .base import BaseLLM
 from .deepseek import DeepSeekLLM
 from .openai_llm import OpenAILLM
-
+from .qwen_llm import QwenLLM
 __all__ = ["BaseLLM", "DeepSeekLLM", "OpenAILLM"]

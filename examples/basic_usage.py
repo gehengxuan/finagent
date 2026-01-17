@@ -24,16 +24,17 @@ def basic_example():
         print("正在加载配置...")
         config = load_config()
         print_config(config)
-        
+        print("加载本地文件作为手动文档...")
+        local_files = []
         # 创建Agent
         print("正在初始化Agent...")
         agent = DeepSearchAgent(config)
         
         # 执行研究
-        query = "2025年人工智能发展趋势"
+        query = "宁德时代公司一页纸"
         print(f"开始研究: {query}")
         
-        final_report = agent.research(query, save_report=True)
+        final_report = agent.research(query, save_report=True,manual_docs=local_files)
         
         # 显示结果
         print("\n" + "=" * 60)

@@ -68,7 +68,7 @@ class FirstSummaryNode(StateMutationNode):
             self.log_info("正在生成首次段落总结")
             
             # 调用LLM
-            response = self.llm_client.invoke(SYSTEM_PROMPT_FIRST_SUMMARY, message)
+            response = self.llm_client.invoke(SYSTEM_PROMPT_FIRST_SUMMARY, message,**kwargs)
             
             # 处理响应
             processed_response = self.process_output(response)
@@ -197,7 +197,7 @@ class ReflectionSummaryNode(StateMutationNode):
             self.log_info("正在生成反思总结")
             
             # 调用LLM
-            response = self.llm_client.invoke(SYSTEM_PROMPT_REFLECTION_SUMMARY, message)
+            response = self.llm_client.invoke(SYSTEM_PROMPT_REFLECTION_SUMMARY, message,**kwargs)
             
             # 处理响应
             processed_response = self.process_output(response)

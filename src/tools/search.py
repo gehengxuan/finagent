@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from tavily import TavilyClient
 
 
+
 @dataclass
 class SearchResult:
     """搜索结果数据类"""
@@ -26,6 +27,10 @@ class SearchResult:
             "score": self.score
         }
 
+import os
+import requests
+import json
+from typing import List, Dict, Any, Optional
 
 class TavilySearch:
     """Tavily搜索客户端封装"""
@@ -161,7 +166,3 @@ def test_search(query: str = "人工智能发展趋势 2025", max_results: int =
     except Exception as e:
         print(f"搜索测试失败: {str(e)}")
 
-
-if __name__ == "__main__":
-    # 运行测试
-    test_search()

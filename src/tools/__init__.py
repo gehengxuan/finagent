@@ -4,5 +4,5 @@
 """
 
 from .search import tavily_search, SearchResult
-
-__all__ = ["tavily_search", "SearchResult"]
+from .lightrag_search import LightRAGSearch, light_rag_search
+__all__ = ["tavily_search", "SearchResult","light_rag_search"]

@@ -149,7 +149,9 @@ class State:
     is_completed: bool = False                                     # 是否完成
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+    # [新增] 1. 添加存储手动文章的字段
+    manual_documents: List[str] = field(default_factory=list)
+
     def add_paragraph(self, title: str, content: str) -> int:
         """
         添加段落
@@ -217,7 +219,9 @@ class State:
             "final_report": self.final_report,
             "is_completed": self.is_completed,
             "created_at": self.created_at,
-            "updated_at": self.updated_at
+            "updated_at": self.updated_at,
+            # [新增] 2. 序列化时包含手动文章
+            "manual_documents": self.manual_documents
         }
     
     def to_json(self, indent: int = 2) -> str:
@@ -236,7 +240,9 @@ class State:
             final_report=data.get("final_report", ""),
             is_completed=data.get("is_completed", False),
             created_at=data.get("created_at", datetime.now().isoformat()),
-            updated_at=data.get("updated_at", datetime.now().isoformat())
+            updated_at=data.get("updated_at", datetime.now().isoformat()),
+            # [新增] 3. 反序列化时读取手动文章
+            manual_documents=data.get("manual_documents", [])
         )
     
     @classmethod

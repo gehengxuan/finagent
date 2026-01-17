@@ -7,8 +7,9 @@ import json
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+from pypdf import PdfReader
 
-from .llms import DeepSeekLLM, OpenAILLM, BaseLLM
+from .llms import DeepSeekLLM, OpenAILLM,BaseLLM, QwenLLM
 from .nodes import (
     ReportStructureNode,
     FirstSearchNode, 
@@ -18,7 +19,7 @@ from .nodes import (
     ReportFormattingNode
 )
 from .state import State
-from .tools import tavily_search
+from .tools import tavily_search, light_rag_search
 from .utils import Config, load_config, format_search_results_for_prompt
 
 
@@ -43,7 +44,10 @@ class DeepSearchAgent:
         
         # 状态
         self.state = State()
-        
+        # [新增] 自动加载配置中的本地文件
+        if self.config.local_files:
+            self._load_configured_files()
+            
         # 确保输出目录存在
         os.makedirs(self.config.output_dir, exist_ok=True)
         
@@ -52,16 +56,17 @@ class DeepSearchAgent:
     
     def _initialize_llm(self) -> BaseLLM:
         """初始化LLM客户端"""
-        if self.config.default_llm_provider == "deepseek":
-            return DeepSeekLLM(
-                api_key=self.config.deepseek_api_key,
-                model_name=self.config.deepseek_model
+        if self.config.default_llm_provider == "qwen":
+            return QwenLLM(
+                api_key=self.config.qwen_api_key,
+                model_name=self.config.qwen_model
             )
         elif self.config.default_llm_provider == "openai":
             return OpenAILLM(
                 api_key=self.config.openai_api_key,
                 model_name=self.config.openai_model
             )
+        
         else:
             raise ValueError(f"不支持的LLM提供商: {self.config.default_llm_provider}")
     
@@ -72,8 +77,79 @@ class DeepSearchAgent:
         self.first_summary_node = FirstSummaryNode(self.llm_client)
         self.reflection_summary_node = ReflectionSummaryNode(self.llm_client)
         self.report_formatting_node = ReportFormattingNode(self.llm_client)
-    
-    def research(self, query: str, save_report: bool = True) -> str:
+   
+    def _load_configured_files(self):
+        """加载配置文件中指定的本地文件（支持 txt 和 pdf）"""
+        print(f"检测到配置文件中指定了 {len(self.config.local_files)} 个目标路径...")
+        loaded_docs = []
+        
+        # 定义支持的扩展名
+        SUPPORTED_EXTENSIONS = ('.txt', '.pdf')
+
+        def _read_single_file(file_path):
+            """读取单个文件的辅助函数"""
+            filename = os.path.basename(file_path)
+            content = ""
+            try:
+                # 1. 处理 TXT 文件
+                if file_path.lower().endswith('.txt'):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                
+                # 2. 处理 PDF 文件
+                elif file_path.lower().endswith('.pdf'):
+                    reader = PdfReader(file_path)
+                    text_list = []
+                    for page in reader.pages:
+                        # 提取文本并过滤掉 None
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_list.append(page_text)
+                    content = "\n".join(text_list)
+                
+                # 忽略其他文件
+                else:
+                    return None
+
+                # 只有当提取到内容时才返回
+                if content.strip():
+                    return f"【来源文件: {filename}】\n{content}"
+                else:
+                    print(f"  [警告] 文件 {filename} 内容为空或无法提取文本")
+                    return None
+
+            except Exception as e:
+                print(f"  [错误] 读取文件 {filename} 失败: {str(e)}")
+                return None
+
+        # 主循环：遍历配置路径
+        for path in self.config.local_files:
+            # 情况 A: 单个文件
+            if os.path.isfile(path):
+                if path.lower().endswith(SUPPORTED_EXTENSIONS):
+                    doc = _read_single_file(path)
+                    if doc:
+                        loaded_docs.append(doc)
+            
+            # 情况 B: 文件夹
+            elif os.path.isdir(path):
+                print(f"  正在扫描文件夹: {path}")
+                for filename in os.listdir(path):
+                    full_path = os.path.join(path, filename)
+                    if os.path.isfile(full_path) and filename.lower().endswith(SUPPORTED_EXTENSIONS):
+                        doc = _read_single_file(full_path)
+                        if doc:
+                            loaded_docs.append(doc)
+                            print(f"    - 已加载: {filename}")
+        
+        # 如果加载到了文档，存入状态
+        if loaded_docs:
+            self.state.manual_documents = loaded_docs
+            print(f"成功自动加载了 {len(loaded_docs)} 份本地文档到 Agent 记忆中。")
+        else:
+            print("未加载到任何有效文档。")
+    # [修改] 1. 修改 research 方法签名，增加 manual_docs 参数
+    def research(self, query: str, save_report: bool = True,manual_docs: List[str] = None) -> str:
         """
         执行深度研究
         
@@ -89,6 +165,7 @@ class DeepSearchAgent:
         print(f"{'='*60}")
         
         try:
+            self.state.query = query
             # Step 1: 生成报告结构
             self._generate_report_structure(query)
             
@@ -164,24 +241,49 @@ class DeepSearchAgent:
         
         print(f"  - 搜索查询: {search_query}")
         print(f"  - 推理: {reasoning}")
-        
-        # 执行搜索
-        print("  - 执行网络搜索...")
-        search_results = tavily_search(
-            search_query,
-            max_results=self.config.max_search_results,
-            timeout=self.config.search_timeout,
-            api_key=self.config.tavily_api_key
-        )
-        
-        if search_results:
-            print(f"  - 找到 {len(search_results)} 个搜索结果")
-            for j, result in enumerate(search_results, 1):
-                print(f"    {j}. {result['title'][:50]}...")
+        # [修改] 这里开始修改搜索逻辑：优先使用手动文章 + 网络搜索
+        search_results = []
+        # 1. 处理本地文件 (始终优先)
+        # ==========================================================
+        if self.state.manual_documents:
+            print(f"  - [本地知识库] 正在调用 {len(self.state.manual_documents)} 份本地文档...")
+            for idx, doc_content in enumerate(self.state.manual_documents):
+                fake_result = {
+                    "title": f"本地核心资料_{idx+1}",
+                    "url": "local_file",
+                    "content": doc_content,
+                    "score": 10.0 # 给予最高权重
+                }
+                search_results.append(fake_result)
+
+        # ==========================================================
+        # 2. 处理网络搜索 (由 Config 控制)
+        # ==========================================================
+        if self.config.enable_online_search:
+            print("  - [网络搜索] 开关已开启，正在执行搜索...")
+            try:
+                lightrag_results = light_rag_search(
+                    search_query,
+                    max_results=self.config.max_search_results,
+                    timeout=self.config.search_timeout,
+                )
+                if lightrag_results:
+                    print(f"  - [网络搜索] 找到 {len(lightrag_results)} 个在线结果")
+                    for j, result in enumerate(lightrag_results, 1):
+                        print(f"    {j}. {result['title'][:100]}...")
+                    # 将在线结果追加到本地结果后面
+                    search_results.extend(lightrag_results)
+                else:
+                    print("  - [网络搜索] 未找到相关在线结果")
+            except Exception as e:
+                print(f"  - [网络搜索] 出错: {e}")
         else:
-            print("  - 未找到搜索结果")
+            print("  - [网络搜索] 开关已关闭，跳过联网检索。")
+        # 只要 config.enable_online_search 为 True，就调用 LightRAG
         
-        # 更新状态中的搜索历史
+        # 检查是否既没有本地文件，又没开网
+        if not search_results:
+            print("  [警告] 当前没有本地文件且关闭了网络搜索，Agent 将缺乏参考资料！")
         paragraph.research.add_search_results(search_query, search_results)
         
         # 生成初始总结
@@ -225,16 +327,17 @@ class DeepSearchAgent:
             print(f"    反思推理: {reasoning}")
             
             # 执行反思搜索
-            search_results = tavily_search(
+            search_results = light_rag_search(
                 search_query,
                 max_results=self.config.max_search_results,
                 timeout=self.config.search_timeout,
-                api_key=self.config.tavily_api_key
+                # api_key=self.config.tavily_api_key
             )
             
             if search_results:
                 print(f"    找到 {len(search_results)} 个反思搜索结果")
-            
+            for j, result in enumerate(search_results, 1):
+                print(f"    {j}. {result['title'][:100]}...")
             # 更新搜索历史
             paragraph.research.add_search_results(search_query, search_results)
             
@@ -270,7 +373,10 @@ class DeepSearchAgent:
         
         # 格式化报告
         try:
-            final_report = self.report_formatting_node.run(report_data)
+            # final_report = self.report_formatting_node.
+            final_report = self.report_formatting_node.format_report_manually(
+                report_data, self.state.report_title
+            )
         except Exception as e:
             print(f"LLM格式化失败，使用备用方法: {str(e)}")
             final_report = self.report_formatting_node.format_report_manually(
