@@ -3,6 +3,6 @@
 提供外部工具接口，如网络搜索等
 """
 
-from .search import tavily_search, SearchResult
+
 from .lightrag_search import LightRAGSearch, light_rag_search
 __all__ = ["tavily_search", "SearchResult","light_rag_search"]

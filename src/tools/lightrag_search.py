@@ -16,7 +16,7 @@ class LightRAGSearch:
     """LightRAG 搜索客户端封装 (适配 /query/retrieval/report 接口)"""
     
     def __init__(self, 
-                 base_url: str = "https://514efd9e.r25.cpolar.top", 
+                 base_url: str = "http://17c6780f.r25.cpolar.top", 
                  api_key: Optional[str] = None,
                  # [更新] 默认接口路径改为你测试成功的路径
                  endpoint: str = "/query/retrieval/report"): 
@@ -129,7 +129,7 @@ def light_rag_search(query: str, max_results: int = 5, timeout: int = 60,
     Returns:
         标准化的搜索结果列表
     """
-    client = LightRAGSearch(api_key=api_key)
+    client = LightRAGSearch()
     return client.search(query=query, max_results=max_results, timeout=timeout)
 # ==========================================
 # 自测代码 (直接运行此文件可测试)
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     client = LightRAGSearch()
     # 模拟查询
     test_results = client.search("宁德时代产能", max_results=3)
-    
+    print(test_results)
     print("\n=== 测试结果展示 ===")
     for i, res in enumerate(test_results, 1):
         print(f"\n[结果 {i}]")

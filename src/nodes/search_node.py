@@ -1,228 +1,104 @@
-"""
-搜索节点实现
-负责生成搜索查询和反思查询
-"""
-
 import json
-from typing import Dict, Any
-from json.decoder import JSONDecodeError
+from langchain_core.messages import SystemMessage, HumanMessage
+from ..state.state import SectionState
+from ..tools.lightrag_search import LightRAGSearch
+from ..prompts.prompts import SYSTEM_PROMPT_FIRST_SEARCH
+from ..utils import load_config
 
-from .base_node import BaseNode
-from ..prompts import SYSTEM_PROMPT_FIRST_SEARCH, SYSTEM_PROMPT_REFLECTION
-from ..utils.text_processing import (
-    remove_reasoning_from_output,
-    clean_json_tags,
-    extract_clean_response
-)
+config = load_config()
+rag_tool = LightRAGSearch()
 
-
-class FirstSearchNode(BaseNode):
-    """为段落生成首次搜索查询的节点"""
+def search_node(state: SectionState, llm):
+    """
+    搜索节点：支持【初次意图生成】和【反思补搜】两种模式
+    """
+    query_to_search = ""
+    search_reasoning = ""
     
-    def __init__(self, llm_client):
-        """
-        初始化首次搜索节点
-        
-        Args:
-            llm_client: LLM客户端
-        """
-        super().__init__(llm_client, "FirstSearchNode")
-    
-    def validate_input(self, input_data: Any) -> bool:
-        """验证输入数据"""
-        if isinstance(input_data, str):
-            try:
-                data = json.loads(input_data)
-                return "title" in data and "content" in data
-            except JSONDecodeError:
-                return False
-        elif isinstance(input_data, dict):
-            return "title" in input_data and "content" in input_data
-        return False
-    
-    def run(self, input_data: Any, **kwargs) -> Dict[str, str]:
-        """
-        调用LLM生成搜索查询和理由
-        
-        Args:
-            input_data: 包含title和content的字符串或字典
-            **kwargs: 额外参数
-            
-        Returns:
-            包含search_query和reasoning的字典
-        """
+    # --- 修改点 1：使用字典方式访问 section_def ---
+    section_def = state["section_def"]
+    # 确保 section_def 是字典
+    if not isinstance(section_def, dict):
+        # 兼容性处理：如果是对象则转字典，或者直接报错
         try:
-            if not self.validate_input(input_data):
-                raise ValueError("输入数据格式错误，需要包含title和content字段")
-            
-            # 准备输入数据
-            if isinstance(input_data, str):
-                message = input_data
-            else:
-                message = json.dumps(input_data, ensure_ascii=False)
-            
-            self.log_info("正在生成首次搜索查询")
-            
-            # 调用LLM
-            response = self.llm_client.invoke(SYSTEM_PROMPT_FIRST_SEARCH, message,**kwargs)
-            
-            # 处理响应
-            processed_response = self.process_output(response)
-            
-            self.log_info(f"生成搜索查询: {processed_response.get('search_query', 'N/A')}")
-            return processed_response
-            
-        except Exception as e:
-            self.log_error(f"生成首次搜索查询失败: {str(e)}")
-            raise e
-    
-    def process_output(self, output: str) -> Dict[str, str]:
-        """
-        处理LLM输出，提取搜索查询和推理
-        
-        Args:
-            output: LLM原始输出
-            
-        Returns:
-            包含search_query和reasoning的字典
-        """
-        try:
-            # 清理响应文本
-            cleaned_output = remove_reasoning_from_output(output)
-            cleaned_output = clean_json_tags(cleaned_output)
-            
-            # 解析JSON
-            try:
-                result = json.loads(cleaned_output)
-            except JSONDecodeError:
-                # 使用更强大的提取方法
-                result = extract_clean_response(cleaned_output)
-                if "error" in result:
-                    raise ValueError("JSON解析失败")
-            
-            # 验证和清理结果
-            search_query = result.get("search_query", "")
-            reasoning = result.get("reasoning", "")
-            
-            if not search_query:
-                raise ValueError("未找到搜索查询")
-            
-            return {
-                "search_query": search_query,
-                "reasoning": reasoning
-            }
-            
-        except Exception as e:
-            self.log_error(f"处理输出失败: {str(e)}")
-            # 返回默认查询
-            return {
-                "search_query": "相关主题研究",
-                "reasoning": "由于解析失败，使用默认搜索查询"
-            }
+            section_def = section_def.__dict__
+        except:
+            pass
 
+    # A. 反思后的补搜
+    if state.get("feedback_search_query"):
+        query_to_search = state["feedback_search_query"]
+        search_reasoning = f"响应反思修改: {state.get('critique')}"
+        print(f"🔍 [Search] 执行补搜: {query_to_search}")
+        
+    # B. 初次搜索
+    else:
+        print(f"🔍 [Search] 正在生成初次搜索词...")
+        query_to_search, search_reasoning = _generate_initial_query(state, llm)
+        print(f"  > 生成查询: {query_to_search}")
 
-class ReflectionNode(BaseNode):
-    """反思段落并生成新搜索查询的节点"""
-    
-    def __init__(self, llm_client):
-        """
-        初始化反思节点
-        
-        Args:
-            llm_client: LLM客户端
-        """
-        super().__init__(llm_client, "ReflectionNode")
-    
-    def validate_input(self, input_data: Any) -> bool:
-        """验证输入数据"""
-        if isinstance(input_data, str):
-            try:
-                data = json.loads(input_data)
-                required_fields = ["title", "content", "paragraph_latest_state"]
-                return all(field in data for field in required_fields)
-            except JSONDecodeError:
-                return False
-        elif isinstance(input_data, dict):
-            required_fields = ["title", "content", "paragraph_latest_state"]
-            return all(field in input_data for field in required_fields)
-        return False
-    
-    def run(self, input_data: Any, **kwargs) -> Dict[str, str]:
-        """
-        调用LLM反思并生成搜索查询
-        
-        Args:
-            input_data: 包含title、content和paragraph_latest_state的字符串或字典
-            **kwargs: 额外参数
-            
-        Returns:
-            包含search_query和reasoning的字典
-        """
-        try:
-            if not self.validate_input(input_data):
-                raise ValueError("输入数据格式错误，需要包含title、content和paragraph_latest_state字段")
-            
-            # 准备输入数据
-            if isinstance(input_data, str):
-                message = input_data
-            else:
-                message = json.dumps(input_data, ensure_ascii=False)
-            
-            self.log_info("正在进行反思并生成新搜索查询")
-            
-            # 调用LLM
-            response = self.llm_client.invoke(SYSTEM_PROMPT_REFLECTION, message,**kwargs)
-            
-            # 处理响应
-            processed_response = self.process_output(response)
-            
-            self.log_info(f"反思生成搜索查询: {processed_response.get('search_query', 'N/A')}")
-            return processed_response
-            
-        except Exception as e:
-            self.log_error(f"反思生成搜索查询失败: {str(e)}")
-            raise e
-    
-    def process_output(self, output: str) -> Dict[str, str]:
-        """
-        处理LLM输出，提取搜索查询和推理
-        
-        Args:
-            output: LLM原始输出
-            
-        Returns:
-            包含search_query和reasoning的字典
-        """
-        try:
-            # 清理响应文本
-            cleaned_output = remove_reasoning_from_output(output)
-            cleaned_output = clean_json_tags(cleaned_output)
-            
-            # 解析JSON
-            try:
-                result = json.loads(cleaned_output)
-            except JSONDecodeError:
-                # 使用更强大的提取方法
-                result = extract_clean_response(cleaned_output)
-                if "error" in result:
-                    raise ValueError("JSON解析失败")
-            
-            # 验证和清理结果
-            search_query = result.get("search_query", "")
-            reasoning = result.get("reasoning", "")
-            
-            if not search_query:
-                raise ValueError("未找到搜索查询")
-            
-            return {
-                "search_query": search_query,
-                "reasoning": reasoning
+    # 执行搜索
+    try:
+        results = rag_tool.search(query_to_search, max_results=5)
+    except Exception as e:
+        print(f"  > [Error] 搜索工具调用失败: {e}")
+        results = []
+
+    # 格式化结果
+    new_info = []
+    if results:
+        print(f"  > 获得 {len(results)} 条结果")
+        for res in results:
+            snippet = {
+                "title": res.get('title', '未知标题'), # <--- 加上这一行！
+                "content": f"【来源: {res.get('title', '未知')}】\n{res.get('content', '')}",
+                "url": res.get("url", ""),
+                "query": query_to_search
             }
+            new_info.append(snippet)
+    else:
+        print("  > ⚠️ 未搜索到有效信息")
+
+    current_results = state.get("search_results", [])
+    updated_results = current_results + new_info
+    
+    return {
+        "search_results": updated_results,
+        "feedback_search_query": None
+    }
+
+def _generate_initial_query(state: SectionState, llm):
+    """
+    辅助函数：调用 LLM 生成搜索词
+    """
+    # --- 修改点 2：使用字典方式访问 ---
+    section_def = state["section_def"]
+    section_title = section_def["title"]   # 之前是 .title
+    instruction = section_def["content"]   # 之前是 .content
+    
+    input_data = {
+        "title": section_title,
+        "content": instruction
+    }
+    
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT_FIRST_SEARCH),
+        HumanMessage(content=json.dumps(input_data, ensure_ascii=False))
+    ]
+    
+    try:
+        response = llm.invoke(messages, response_format={"type": "json_object"})
+        result = json.loads(response.content)
+        
+        query = result.get("search_query", state["query"])
+        reasoning = result.get("reasoning", "")
+        
+        if state["query"] not in query:
+            query = f"{state['query']} {query}"
             
-        except Exception as e:
-            self.log_error(f"处理输出失败: {str(e)}")
-            # 返回默认查询
-            return {
-                "search_query": "深度研究补充信息",
-                "reasoning": "由于解析失败，使用默认反思搜索查询"
-            }
+        return query, reasoning
+        
+    except Exception as e:
+        print(f"  > [Error] 搜索意图生成失败: {e}")
+        fallback = f"{state['query']} {section_title}"
+        return fallback, "生成失败，使用兜底查询"

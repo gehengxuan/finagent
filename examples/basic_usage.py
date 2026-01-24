@@ -1,63 +1,54 @@
-"""
-基本使用示例
-演示如何使用Deep Search Agent进行基本的深度搜索
-"""
+# examples/basic_usage.py
 
 import os
 import sys
+import time
 
-# 添加项目根目录到Python路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# 确保能找到 src 目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.dirname(current_dir)
+sys.path.append(src_dir)
 
-from src import DeepSearchAgent, load_config
-from src.utils.config import print_config
+from src.agent import StructuredReportAgent
 
-
-def basic_example():
-    """基本使用示例"""
-    print("=" * 60)
-    print("Deep Search Agent - 基本使用示例")
-    print("=" * 60)
+def main():
+    # 1. 初始化 Agent
+    # 这一步会构建内部的 LangGraph 图结构
+    agent = StructuredReportAgent()
     
-    try:
-        # 加载配置
-        print("正在加载配置...")
-        config = load_config()
-        print_config(config)
-        print("加载本地文件作为手动文档...")
-        local_files = []
-        # 创建Agent
-        print("正在初始化Agent...")
-        agent = DeepSearchAgent(config)
-        
-        # 执行研究
-        query = "宁德时代公司一页纸"
-        print(f"开始研究: {query}")
-        
-        final_report = agent.research(query, save_report=True,manual_docs=local_files)
-        
-        # 显示结果
-        print("\n" + "=" * 60)
-        print("研究完成！最终报告预览:")
-        print("=" * 60)
-        print(final_report[:500] + "..." if len(final_report) > 500 else final_report)
-        
-        # 显示进度信息
-        progress = agent.get_progress_summary()
-        print(f"\n进度信息:")
-        print(f"- 总段落数: {progress['total_paragraphs']}")
-        print(f"- 已完成段落: {progress['completed_paragraphs']}")
-        print(f"- 完成进度: {progress['progress_percentage']:.1f}%")
-        print(f"- 是否完成: {progress['is_completed']}")
-        
-    except Exception as e:
-        print(f"示例运行失败: {str(e)}")
-        print("请检查：")
-        print("1. 是否安装了所有依赖：pip install -r requirements.txt")
-        print("2. 是否设置了必要的API密钥")
-        print("3. 网络连接是否正常")
-        print("4. 配置文件是否正确")
-
+    # 2. 运行任务
+    query = "分析宁德时代（300750）的投资价值，重点关注其财务表现与核心竞争力。"
+    
+    print("\n" + "="*50)
+    print(f"开始生成研报: {query}")
+    print("="*50 + "\n")
+    
+    start_time = time.time()
+    
+    # 这里调用封装好的 generate_report，它内部会启动 asyncio 循环
+    # 整个过程包含了：生成大纲 -> 并行搜索 -> 并行写作 -> 自我反思 -> 汇总
+    final_report = agent.generate_report(query)
+    
+    end_time = time.time()
+    duration = end_time - start_time
+    
+    # 3. 保存结果
+    output_dir = os.path.join(current_dir, "../reports")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    filename = f"report_{int(time.time())}.md"
+    output_path = os.path.join(output_dir, filename)
+    
+    if final_report:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(final_report)
+            
+        print("\n" + "="*50)
+        print(f"🎉 报告生成成功！耗时: {duration:.2f}秒")
+        print(f"📂 保存路径: {output_path}")
+        print("="*50)
+    else:
+        print("\n❌ 报告生成失败")
 
 if __name__ == "__main__":
-    basic_example()
+    main()
