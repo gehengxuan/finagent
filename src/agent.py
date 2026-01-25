@@ -3,9 +3,9 @@ import operator
 from typing import Annotated, List, Dict, TypedDict, Optional, Any
 from langgraph.graph import StateGraph, END, START
 from langgraph.constants import Send
-
+import re
 # 引入组件
-from .state import SectionState, SectionMetadata
+from .state import SectionState, SectionMetadata, SectionOutput, reduce_list, reduce_overwrite,AgentState
 from .nodes.structure_node import generate_structure_node
 from .nodes.writer_node import write_section_node
 from .nodes.reflector_node import reflector_node, should_continue
@@ -17,25 +17,25 @@ from .utils import load_config
 # 1. 定义 Reducer
 # ==========================================
 
-def reduce_query(left: Optional[str], right: Optional[str]) -> str:
-    return left or right
+# def reduce_query(left: Optional[str], right: Optional[str]) -> str:
+#     return left or right
 
-def reduce_list(left: Optional[list], right: Optional[list]) -> list:
-    if left is None:
-        left = []
-    if right is None:
-        right = []
-    return left + right
+# def reduce_list(left: Optional[list], right: Optional[list]) -> list:
+#     if left is None:
+#         left = []
+#     if right is None:
+#         right = []
+#     return left + right
 
-class AgentState(TypedDict):
-    query: Annotated[str, reduce_query] 
-    sections: List[SectionMetadata]
-    completed_sections: Annotated[List[str], reduce_list]
+# class AgentState(TypedDict):
+#     query: Annotated[str, reduce_query] 
+#     sections: List[SectionMetadata]
+#     completed_sections: Annotated[List[str], reduce_list]
     
-    # 【新增】用于汇总所有子节点的搜索结果，最后统一生成参考文献
-    aggregate_references: Annotated[List[Dict[str, Any]], reduce_list]
+#     # 【新增】用于汇总所有子节点的搜索结果，最后统一生成参考文献
+#     aggregate_references: Annotated[List[Dict[str, Any]], reduce_list]
     
-    final_report: str
+#     final_report: str
 
 # ==========================================
 # 2. 构建图逻辑
@@ -52,24 +52,23 @@ def _build_graph():
     workflow_sec.add_node("reflect", lambda s: reflector_node(s, llm))
     
     # [修改点 1]：format_output 不再生成 Reference 文本
+    # [修改点 1] 升级打包逻辑
     def format_output(state: SectionState):
         section_def = state['section_def']
         title = section_def['title'] if isinstance(section_def, dict) else section_def.title
         
-        # 只保留正文，不拼接参考资料
-        formatted = f"## {title}\n\n{state['current_content']}"
-        
-        # 提取当前节点的搜索结果，准备向上合并
-        current_refs = state.get('search_results', [])
+        # 我们不在这里拼接 Reference，而是把元数据传出去
+        output_data: SectionOutput = {
+            "title": title,
+            "content": state['current_content'],
+            "local_refs": state.get('search_results', [])
+        }
         
         return {
-            "completed_sections": [formatted],
-            # 将原始搜索数据传给主图的 aggregate_references
-            "aggregate_references": current_refs
+            "completed_sections": [output_data]
         }
     
     workflow_sec.add_node("format_output", format_output)
-    
     # 子图连线
     workflow_sec.add_edge(START, "search")
     workflow_sec.add_edge("search", "write")
@@ -93,43 +92,82 @@ def _build_graph():
     workflow.add_node("generate_structure", lambda s: generate_structure_node(s, llm))
     workflow.add_node("section_worker", section_subgraph)
     
-    # [修改点 2]：在编译阶段统一生成参考文献
+    # [修改点 2] 核心修复：全局重映射与文本替换
     def compile_report(state):
-        content_list = state.get("completed_sections", [])
-        all_refs = state.get("aggregate_references", [])
+        sections_data = state.get("completed_sections", [])
         
-        # 1. 拼接正文
-        if not content_list:
-            body = "⚠️ 生成失败：未能收集到任何段落内容。"
-        else:
-            body = f"# {state.get('query', '研究报告')}\n\n" + "\n\n---\n\n".join(content_list)
-            
-        # 2. 处理参考文献（去重 + 格式化）
-        ref_section = ""
-        if all_refs:
-            # 简单去重：根据 url 或 title
-            unique_refs = {}
-            for ref in all_refs:
-                # 优先用 URL 去重，没有 URL 用 Title
-                key = ref.get('url') if ref.get('url') and ref.get('url') != "本地检索" else ref.get('title')
-                if key:
-                    unique_refs[key] = ref
-            
-            # 生成列表文本
-            if unique_refs:
-                ref_section = "\n\n# 参考资料 / References\n\n"
-                for i, ref in enumerate(unique_refs.values(), 1):
-                    title = ref.get('title', '未知来源')
-                    url = ref.get('url', '')
-                    
-                    line = f"{i}. {title}"
-                    if url and url != "本地检索":
-                        line += f"  \n   链接: {url}"
-                    ref_section += line + "\n"
+        # --- 第一阶段：构建全局引用库 ---
+        global_refs = []     # 存储最终的去重后引用列表
+        url_to_global_id = {} # 辅助去重映射: url -> global_id
+        
+        # 遍历所有段落
+        for sec in sections_data:
+            local_refs = sec.get("local_refs", [])
+            # 遍历该段落的每一个引用
+            for ref in local_refs:
+                url = ref.get('url', '')
+                title = ref.get('title', '未知')
+                
+                # 生成唯一键 (优先用URL，没有URL用标题)
+                unique_key = url if url and len(url) > 5 and "本地" not in url else title
+                
+                # 如果这个引用还没收录过，就收录进去
+                if unique_key not in url_to_global_id:
+                    new_id = len(global_refs) + 1
+                    url_to_global_id[unique_key] = new_id
+                    global_refs.append(ref)
 
-        final_md = body + ref_section
+        # --- 第二阶段：正文 ID 重写 ---
+        final_content_parts = []
+        
+        for sec in sections_data:
+            original_text = sec["content"]
+            local_refs = sec.get("local_refs", [])
             
-        return {"final_report": final_md}
+            # 构建当前段落的映射表: Local_ID -> Global_ID
+            # Worker 生成的引用是按顺序的 [1], [2]... 对应 local_refs[0], local_refs[1]...
+            local_id_map = {}
+            for i, ref in enumerate(local_refs, 1): # i 是局部ID (1, 2...)
+                url = ref.get('url', '')
+                title = ref.get('title', '未知')
+                unique_key = url if url and len(url) > 5 and "本地" not in url else title
+                
+                # 找到它在全局库里的 ID
+                if unique_key in url_to_global_id:
+                    global_id = url_to_global_id[unique_key]
+                    local_id_map[i] = global_id
+            
+            # 定义正则替换函数
+            def replace_match(match):
+                # 捕获到的数字，例如 [14] 中的 14
+                local_num = int(match.group(1))
+                # 查找映射，如果找不到（极少情况），保留原数字
+                global_num = local_id_map.get(local_num, local_num)
+                return f"[{global_num}]"
+            
+            # 执行正则替换：把 [14] 变成 [3]
+            # 匹配模式：\[(\d+)\]  --> 匹配方括号内的数字
+            fixed_text = re.sub(r'\[(\d+)\]', replace_match, original_text)
+            
+            # 加上标题
+            final_content_parts.append(f"## {sec['title']}\n\n{fixed_text}")
+
+        # --- 第三阶段：生成最终报告 ---
+        body = f"# {state.get('query', '研究报告')}\n\n" + "\n\n---\n\n".join(final_content_parts)
+        
+        # 生成文末引用列表
+        ref_section = ""
+        if global_refs:
+            ref_section = "\n\n### 参考资料 / References\n"
+            for i, ref in enumerate(global_refs, 1):
+                title = ref.get('title', '未知来源')
+                url = ref.get('url', '')
+                line = f"- [{i}] {title}"
+                if url and "本地" not in url:
+                    line += f"  ([链接]({url}))"
+                ref_section += line + "\n"
+                
+        return {"final_report": body + ref_section}
 
     workflow.add_node("compile", compile_report)
 
@@ -145,12 +183,10 @@ def _build_graph():
             "search_results": [], 
             "current_content": "", 
             "is_satisfactory": False,
-            "completed_sections": [],
-            "aggregate_references": [] # 初始化
+            "completed_sections": [] 
         }) for sec in state["sections"]],
         ["section_worker"]
     )
-    
     workflow.add_edge("section_worker", "compile")
     workflow.add_edge("compile", END)
 
@@ -162,14 +198,13 @@ def _build_graph():
 class StructuredReportAgent:
     def __init__(self):
         self.graph = _build_graph()
-        print("✅ StructuredReportAgent 初始化完成 (全局引用版)")
+        print("✅ StructuredReportAgent 初始化完成 (全局重映射引用版)")
 
     async def run(self, query: str):
         inputs = {
             "query": query,
             "sections": [],
-            "completed_sections": [],
-            "aggregate_references": []
+            "completed_sections": []
         }
         
         final_output = None

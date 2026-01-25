@@ -2,8 +2,9 @@ import os
 import requests
 import json
 from typing import List, Dict, Any, Optional
-
+from src.utils import load_config
 # --- 辅助函数：如果未来同学又改回复杂格式，这个还能兜底 ---
+config= load_config()
 def clean_content_text(text: str) -> str:
     """简单的文本清洗，防止内容包含过多的换行或无用空格"""
     if not text:
@@ -16,7 +17,7 @@ class LightRAGSearch:
     """LightRAG 搜索客户端封装 (适配 /query/retrieval/report 接口)"""
     
     def __init__(self, 
-                 base_url: str = "http://17c6780f.r25.cpolar.top", 
+                 base_url: Optional[str] = config.lightrag_url,
                  api_key: Optional[str] = None,
                  # [更新] 默认接口路径改为你测试成功的路径
                  endpoint: str = "/query/retrieval/report"): 
