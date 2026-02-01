@@ -113,20 +113,20 @@ python examples/basic_usage.py
 ```text
 finagent/
 ├── src/
-│   ├── agent.py               # 智能体核心调度逻辑 (Graph 编排)
+│   ├── agent.py                      # ✨ 集成完整可观测性
+│   ├── graph/                        # 已有模块
+│   │   ├── __init__.py
+│   │   ├── builder.py
+│   │   └── graph_config.py
+│   ├── nodes/
 │   ├── llms/
-│   │   └── qwen_llm.py        # [创新] Qwen 模型适配层
 │   ├── tools/
-│   │   ├── search.py          # 基础搜索工具接口
-│   │   └── lightrag_search.py # [创新] LightRAG 本地图谱检索客户端
-│   ├── prompts/               # [创新] 金融垂直领域 Prompt 库
-│   └── nodes/                 # 各个功能节点 (Planner, Writer 等)
+│   ├── prompts/
+│   ├── state/
+│   └── utils/
 ├── examples/
-│   └── basic_usage.py         # 启动脚本 Demo
-├── reports/                   # 产出物存放目录
-├── config.py.example          # 配置模板 (安全)
-├── requirements.txt           # 项目依赖
-└── README.md                  # 项目文档
+│   ├── basic_usage.py               # ✨ 展示完整可观测性
+└── requirements.txt                  # ✨ 已更新
 
 ```
 
