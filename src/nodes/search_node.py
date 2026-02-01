@@ -59,8 +59,36 @@ def search_node(state: SectionState, llm):
     else:
         print("  > ⚠️ 未搜索到有效信息")
 
+    # ============================================================
+    # 【源头去重 1】：合并到现有结果前先去重
+    # ============================================================
     current_results = state.get("search_results", [])
-    updated_results = current_results + new_info
+    
+    # 去重逻辑：基于 URL 或 title 判断是否为同一文档
+    def get_doc_key(item):
+        """生成文档唯一键"""
+        url = item.get('url', '')
+        title = item.get('title', '')
+        # 优先使用 URL，如果 URL 为空或本地路径，使用 title
+        if url and len(url) > 5 and '本地' not in url:
+            return url
+        return title
+    
+    # 记录已有的文档
+    existing_keys = {get_doc_key(item) for item in current_results}
+    
+    # 只添加新的、未重复的搜索结果
+    deduplicated_new_info = []
+    for item in new_info:
+        key = get_doc_key(item)
+        if key not in existing_keys:
+            deduplicated_new_info.append(item)
+            existing_keys.add(key)
+        else:
+            print(f"  > [去重] 跳过重复文档: {item.get('title', '未知')[:30]}...")
+    
+    updated_results = current_results + deduplicated_new_info
+    print(f"  > 累计搜索结果: {len(updated_results)} 条（去重后）")
     
     return {
         "search_results": updated_results,

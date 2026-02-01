@@ -219,6 +219,10 @@ class MainGraphBuilder:
                     return f"[{global_num}]"
                 
                 fixed_text = re.sub(r'\[(\d+)\]', replace_match, original_text)
+                
+                # 对正文中的重复引用进行去重处理
+                fixed_text = self._deduplicate_consecutive_citations(fixed_text)
+                
                 final_content_parts.append(f"## {sec['title']}\n\n{fixed_text}")
             
             # --- 阶段 3: 生成最终报告 ---
@@ -244,6 +248,124 @@ class MainGraphBuilder:
             return {"final_report": body + ref_section}
         
         return compile_report
+    
+    def _deduplicate_consecutive_citations(self, text: str) -> str:
+        """
+        去重连续出现的相同引用号
+        
+        处理以下情况：
+        - [[1]] [[1]] [[2]] → [[1]] [[2]]
+        - [[4]]、[[4]]、[[9]] → [[4]]、[[9]]  (保留分隔符)
+        - [1] [1] [2] → [1] [2]
+        - [[4]] [[5]] [[7]] [[4]] → [[4]] [[5]] [[7]]（去除交错重复）
+        
+        Args:
+            text: 原始文本
+            
+        Returns:
+            去重后的文本
+        """
+        
+        def deduplicate_double_bracket_consecutive(text):
+            """处理 [[1]] [[1]] 格式的连续重复"""
+            prev_text = ""
+            max_iterations = 10
+            iteration = 0
+            
+            while text != prev_text and iteration < max_iterations:
+                prev_text = text
+                iteration += 1
+                
+                # 匹配 [[N]]、[[N]] 或 [[N]] [[N]] 这样的相邻重复模式
+                pattern = r'\[\[(\d+)\]\]([\s、，,]*)\[\[(\d+)\]\]'
+                
+                def replace_func(match):
+                    num1 = match.group(1)
+                    separator = match.group(2)
+                    num2 = match.group(3)
+                    
+                    # 如果两个数字相同，去掉第一个
+                    if num1 == num2:
+                        return f"[[{num1}]]"
+                    else:
+                        # 不相同，保留原样
+                        return match.group(0)
+                
+                text = re.sub(pattern, replace_func, text)
+            
+            return text
+        
+        def deduplicate_single_bracket_consecutive(text):
+            """处理 [1] [1] 格式的连续重复"""
+            prev_text = ""
+            max_iterations = 10
+            iteration = 0
+            
+            while text != prev_text and iteration < max_iterations:
+                prev_text = text
+                iteration += 1
+                
+                # 匹配 [N]、[N] 或 [N] [N] 这样的相邻重复模式
+                pattern = r'\[(\d+)\]([\s、，,]*)\[(\d+)\]'
+                
+                def replace_func(match):
+                    num1 = match.group(1)
+                    separator = match.group(2)
+                    num2 = match.group(3)
+                    
+                    # 如果两个数字相同，去掉第一个
+                    if num1 == num2:
+                        return f"[{num1}]"
+                    else:
+                        # 不相同，保留原样
+                        return match.group(0)
+                
+                text = re.sub(pattern, replace_func, text)
+            
+            return text
+        
+        # 先处理 [[N]] 格式（连续相邻的重复）
+        text = deduplicate_double_bracket_consecutive(text)
+        
+        # 再处理 [[N]] 格式（引用序列块中的交错重复）
+        # 在一个"引用序列块"（一连串引用，中间仅有空格或分隔符）中去重
+        pattern = r'\[\[\d+\]\](?:[\s、，,]+\[\[\d+\]\])*'
+        
+        def deduplicate_block(match):
+            block = match.group(0)
+            
+            # 提取所有引用号
+            citation_pattern = r'\[\[(\d+)\]\]'
+            citations = re.findall(citation_pattern, block)
+            
+            # 如果没有重复，返回原样
+            if len(set(citations)) == len(citations):
+                return block
+            
+            # 去重但保持顺序
+            seen = set()
+            unique = []
+            for c in citations:
+                if c not in seen:
+                    seen.add(c)
+                    unique.append(c)
+            
+            # 获取分隔符
+            sep_match = re.search(r'\]\]([\s、，,]+)\[\[', block)
+            if sep_match:
+                sep = sep_match.group(1)
+            else:
+                sep = ' '
+            
+            # 重建
+            return sep.join([f"[[{c}]]" for c in unique])
+        
+        text = re.sub(pattern, deduplicate_block, text)
+        
+        # 最后处理 [N] 格式
+        text = deduplicate_single_bracket_consecutive(text)
+        
+        return text
     
     def _map_sections_to_workers(self, state: AgentState) -> List:
         """

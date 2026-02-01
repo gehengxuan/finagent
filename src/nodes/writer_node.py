@@ -13,8 +13,30 @@ def write_section_node(state: SectionState, llm):
     
     search_data = state.get("search_results", [])
     
+    # ============================================================    # 【源头去重 2】：对 search_results 进行二次去重（防御性编程）
     # ============================================================
-    # 修复点 1：标准化搜索结果格式，带上 [ID]
+    def deduplicate_search_results(results):
+        """对搜索结果进行去重"""
+        seen_keys = set()
+        deduplicated = []
+        
+        for item in results:
+            # 生成唯一键
+            url = item.get('url', '') if isinstance(item, dict) else ''
+            title = item.get('title', '') if isinstance(item, dict) else ''
+            
+            key = url if (url and len(url) > 5 and '本地' not in url) else title
+            
+            if key not in seen_keys:
+                deduplicated.append(item)
+                seen_keys.add(key)
+        
+        return deduplicated
+    
+    # 在写作前去重
+    search_data = deduplicate_search_results(search_data)
+    
+    # ============================================================    # 修复点 1：标准化搜索结果格式，带上 [ID]
     # ============================================================
     formatted_context_list = []
     # 如果 search_data 是字符串列表（兼容旧数据），先转一下
