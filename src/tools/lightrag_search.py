@@ -2,27 +2,30 @@ import os
 import requests
 import json
 from typing import List, Dict, Any, Optional
-from src.utils import load_config
-# --- 辅助函数：如果未来同学又改回复杂格式，这个还能兜底 ---
-config= load_config()
+
+
 def clean_content_text(text: str) -> str:
     """简单的文本清洗，防止内容包含过多的换行或无用空格"""
     if not text:
         return ""
-    # 如果未来内容里又出现了 "Document Chunks" 这种复杂标记，可以在这里加逻辑
-    # 目前看来直接返回即可，最多去掉首尾空格
     return text.strip()
+
 
 class LightRAGSearch:
     """LightRAG 搜索客户端封装 (适配 /query/retrieval/report 接口)"""
     
     def __init__(self, 
-                 base_url: Optional[str] = config.lightrag_url,
+                 base_url: Optional[str] = None,
                  api_key: Optional[str] = None,
-                 # [更新] 默认接口路径改为你测试成功的路径
                  endpoint: str = "/query/retrieval/report"): 
         
-        self.base_url = base_url.rstrip("/")
+        # 延迟加载配置：仅在未显式传入 base_url 时才读取
+        if base_url is None:
+            from ..utils import load_config
+            config = load_config()
+            base_url = config.lightrag_url
+        
+        self.base_url = (base_url or "").rstrip("/")
         self.api_url = f"{self.base_url}{endpoint}"
         self.api_key = api_key
         
@@ -119,7 +122,8 @@ class LightRAGSearch:
         print(f"  > [LightRAG] 成功解析 {len(results)} 条有效内容")
         return results
 def light_rag_search(query: str, max_results: int = 5, timeout: int = 60, 
-                     api_key: Optional[str] = None) -> List[Dict[str, Any]]:
+                     api_key: Optional[str] = None,
+                     base_url: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     便捷的 LightRAG 搜索函数
     Args:
@@ -127,10 +131,11 @@ def light_rag_search(query: str, max_results: int = 5, timeout: int = 60,
         max_results: 返回数量
         timeout: 超时时间
         api_key: 可选的 API Key
+        base_url: 可选的服务器地址
     Returns:
         标准化的搜索结果列表
     """
-    client = LightRAGSearch()
+    client = LightRAGSearch(base_url=base_url, api_key=api_key)
     return client.search(query=query, max_results=max_results, timeout=timeout)
 # ==========================================
 # 自测代码 (直接运行此文件可测试)

@@ -2,19 +2,20 @@
 src/graph/builder.py
 图构建器 - 负责组装 LangGraph
 """
-from ..llms.qwen_llm import QwenLLM
 from typing import Any, Callable, Dict, List
 from langgraph.graph import StateGraph, END, START
 from langgraph.constants import Send
 import re
 
-from .graph_config import SUBGRAPH_TOPOLOGY, MAIN_GRAPH_TOPOLOGY, EXECUTION_CONFIG
+from .graph_config import SUBGRAPH_TOPOLOGY, MAIN_GRAPH_TOPOLOGY, EXECUTION_CONFIG, NODE_PARAMS
 from ..state import SectionState, AgentState
 from ..nodes.structure_node import generate_structure_node
 from ..nodes.writer_node import write_section_node
 from ..nodes.reflector_node import reflector_node, should_continue
 from ..nodes.search_node import search_node
 from ..utils import load_config
+from ..utils.text_processing import get_doc_key
+from ..llms import BaseLLM, QwenLLM, DeepSeekLLM, OpenAILLM
 
 
 class SubGraphBuilder:
@@ -132,7 +133,7 @@ class MainGraphBuilder:
         self._add_conditional_edges(workflow)
         
         main_graph = workflow.compile()
-        print("✅ 主图构建完成")
+        print(f"✅ 主图构建完成 (recursion_limit={EXECUTION_CONFIG['recursion_limit']})")
         return main_graph
     
     def _add_nodes(self, workflow: StateGraph):
@@ -173,15 +174,7 @@ class MainGraphBuilder:
                 local_refs = sec.get("local_refs", [])
                 
                 for ref in local_refs:
-                    url = ref.get('url', '')
-                    title = ref.get('title', '未知')
-                    
-                    # 生成唯一键
-                    unique_key = (
-                        url 
-                        if url and len(url) > 5 and "本地" not in url 
-                        else title
-                    )
+                    unique_key = get_doc_key(ref)
                     
                     # 去重
                     if unique_key not in url_to_global_id:
@@ -199,14 +192,7 @@ class MainGraphBuilder:
                 # 建立局部 ID → 全局 ID 映射
                 local_id_map = {}
                 for i, ref in enumerate(local_refs, 1):
-                    url = ref.get('url', '')
-                    title = ref.get('title', '未知')
-                    
-                    unique_key = (
-                        url 
-                        if url and len(url) > 5 and "本地" not in url 
-                        else title
-                    )
+                    unique_key = get_doc_key(ref)
                     
                     if unique_key in url_to_global_id:
                         global_id = url_to_global_id[unique_key]
@@ -387,7 +373,8 @@ class MainGraphBuilder:
                 "search_results": [],
                 "current_content": "",
                 "is_satisfactory": False,
-                "completed_sections": []
+                "completed_sections": [],
+                "reflection_errors": []
             })
             tasks.append(task)
         
@@ -398,11 +385,56 @@ class GraphFactory:
     """图工厂 - 统一管理图的创建"""
     
     @staticmethod
+    def _create_llm(config) -> BaseLLM:
+        """
+        根据配置动态创建 LLM 实例
+        
+        Args:
+            config: Config 对象
+            
+        Returns:
+            BaseLLM 子类实例
+            
+        Raises:
+            ValueError: 不支持的 LLM provider
+        """
+        provider = config.default_llm_provider.lower()
+        
+        if provider == "qwen":
+            if not config.dashscope_api_key:
+                raise ValueError("使用 Qwen 需要配置 DASHSCOPE_API_KEY")
+            llm = QwenLLM(
+                api_key=config.dashscope_api_key,
+                model_name=config.qwen_model
+            )
+        elif provider == "deepseek":
+            if not config.deepseek_api_key:
+                raise ValueError("使用 DeepSeek 需要配置 DEEPSEEK_API_KEY")
+            llm = DeepSeekLLM(
+                api_key=config.deepseek_api_key,
+                model_name=config.deepseek_model
+            )
+        elif provider == "openai":
+            if not config.openai_api_key:
+                raise ValueError("使用 OpenAI 需要配置 OPENAI_API_KEY")
+            llm = OpenAILLM(
+                api_key=config.openai_api_key,
+                model_name=config.openai_model
+            )
+        else:
+            raise ValueError(
+                f"不支持的 LLM provider: '{provider}'。"
+                f"支持的选项: qwen, deepseek, openai"
+            )
+        
+        print(f"  LLM 初始化: {llm}")
+        return llm
+    
+    @staticmethod
     def create_graph() -> Any:
         """创建完整的图（子图 + 主图）"""
-        # 初始化 LLM
         config = load_config()
-        llm = QwenLLM(api_key=config.dashscope_api_key)
+        llm = GraphFactory._create_llm(config)
         
         # 构建子图
         subgraph_builder = SubGraphBuilder(llm)
@@ -413,3 +445,15 @@ class GraphFactory:
         main_graph = main_graph_builder.build()
         
         return main_graph
+    
+    @staticmethod
+    def get_invoke_config() -> Dict:
+        """
+        获取图执行时的运行时配置（传给 graph.invoke() 的 config 参数）
+        
+        Returns:
+            包含 recursion_limit 等运行时参数的字典
+        """
+        return {
+            "recursion_limit": EXECUTION_CONFIG["recursion_limit"],
+        }

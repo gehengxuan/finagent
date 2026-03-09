@@ -23,6 +23,7 @@ class StructuredReportAgent:
     def __init__(self):
         """初始化 Agent"""
         self.graph = GraphFactory.create_graph()
+        self._invoke_config = GraphFactory.get_invoke_config()
         print("✅ StructuredReportAgent 初始化完成")
     
     async def run(self, query: str) -> str:
@@ -47,7 +48,7 @@ class StructuredReportAgent:
         # 流式处理图事件
         async for event in self.graph.astream(
             inputs,
-            config={"recursion_limit": 50}
+            config=self._invoke_config
         ):
             for node_name, value in event.items():
                 # 大纲生成

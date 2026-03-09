@@ -2,22 +2,23 @@
 
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
-from src.state import SectionState
-from src.utils import load_config
+from ..state.state import SectionState
+from ..utils import load_config
 
 # 1. 导入公共 Schema
-from src.prompts.prompts import output_schema_report_structure
+from ..prompts.prompts import output_schema_report_structure
 
 # 2. 导入 个股 Prompt (Set A)
-from src.prompts.company_prompt import (
+from ..prompts.company_prompt import (
     SYSTEM_PROMPT_REPORT_STRUCTURE,
     LOGICAL_PROMPT_INSTRUCTION,
     FINANCIAL_PROMPT_INSTRUCTION,
-    QUESTION_PROMPT_INSTRUCTION
+    QUESTION_PROMPT_INSTRUCTION,
+    RISK_PROMPT_INSTRUCTION
 )
 
 # 3. 导入 行业 Prompt (Set B)
-from src.prompts.industry_prompt import (
+from ..prompts.industry_prompt import (
     SYSTEM_PROMPT_REPORT_STRUCTURE_INDUSTRY,
     MARKET_SPACE_PROMPT_INSTRUCTION,
     COMPETITIVE_LANDSCAPE_INSTRUCTION,
@@ -54,6 +55,7 @@ def generate_structure_node(state: SectionState, llm):
             logical_instruction=LOGICAL_PROMPT_INSTRUCTION.replace('\n', ' '),
             financial_instruction=FINANCIAL_PROMPT_INSTRUCTION.replace('\n', ' '),
             question_instruction=QUESTION_PROMPT_INSTRUCTION.replace('\n', ' '),
+            risk_instruction=RISK_PROMPT_INSTRUCTION.replace('\n', ' '),
             json_schema=json_schema_str
         )
 
@@ -78,4 +80,5 @@ def generate_structure_node(state: SectionState, llm):
         
     except Exception as e:
         print(f"❌ 结构解析失败: {e}")
-        return {"sections": []}
+        # [C4] 不再静默返回空列表——向上传播错误，避免生成空报告
+        raise RuntimeError(f"报告结构生成失败: {e}") from e

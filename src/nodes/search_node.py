@@ -4,14 +4,16 @@ from ..state.state import SectionState
 from ..tools.lightrag_search import LightRAGSearch
 from ..prompts.prompts import SYSTEM_PROMPT_FIRST_SEARCH
 from ..utils import load_config
+from ..utils.text_processing import get_doc_key
 
-config = load_config()
-rag_tool = LightRAGSearch()
 
 def search_node(state: SectionState, llm):
     """
     搜索节点：支持【初次意图生成】和【反思补搜】两种模式
     """
+    # 延迟初始化搜索工具（每次调用时从缓存配置获取）
+    rag_tool = LightRAGSearch()
+    
     query_to_search = ""
     search_reasoning = ""
     
@@ -60,19 +62,9 @@ def search_node(state: SectionState, llm):
         print("  > ⚠️ 未搜索到有效信息")
 
     # ============================================================
-    # 【源头去重 1】：合并到现有结果前先去重
+    # 【源头去重】：合并到现有结果前先去重
     # ============================================================
     current_results = state.get("search_results", [])
-    
-    # 去重逻辑：基于 URL 或 title 判断是否为同一文档
-    def get_doc_key(item):
-        """生成文档唯一键"""
-        url = item.get('url', '')
-        title = item.get('title', '')
-        # 优先使用 URL，如果 URL 为空或本地路径，使用 title
-        if url and len(url) > 5 and '本地' not in url:
-            return url
-        return title
     
     # 记录已有的文档
     existing_keys = {get_doc_key(item) for item in current_results}

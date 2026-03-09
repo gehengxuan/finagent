@@ -1,28 +1,56 @@
 # Deep Search Agent 配置文件
 # 请在这里填入您的API密钥
 
-# DeepSeek API Key
+# ==========================================
+# API Keys
+# ==========================================
+
+# 通义千问 (Qwen) — 默认 LLM
+DASHSCOPE_API_KEY = "your_dashscope_api_key_here"
+
+# DeepSeek (可选，仅当 DEFAULT_LLM_PROVIDER = "deepseek" 时必填)
 DEEPSEEK_API_KEY = "your_deepseek_api_key_here"
 
-# OpenAI API Key (可选)
+# OpenAI (可选，仅当 DEFAULT_LLM_PROVIDER = "openai" 时必填)
 OPENAI_API_KEY = "your_openai_api_key_here"
 
-# Qwen API Key (可选)
-QWEN_API_KEY = "your_qwen_key_here"
+# ==========================================
+# LLM 配置
+# ==========================================
 
-# Tavily搜索API Key
-TAVILY_API_KEY = "your_tavily_key_here"
-
-# 配置参数
+# LLM 提供商：qwen / deepseek / openai
 DEFAULT_LLM_PROVIDER = "qwen"
+
+QWEN_MODEL = "qwen-plus"
 DEEPSEEK_MODEL = "deepseek-chat"
 OPENAI_MODEL = "gpt-4o-mini"
-QWEN_MODEL = "qwen-plus"
+
+# ==========================================
+# 搜索 & 知识库配置
+# ==========================================
+
+# LightRAG 搜索服务地址
+LIGHTRAG_BASE_URL = "https://your-lightrag-endpoint.example.com"
+
+# 是否允许联网搜索
+ENABLE_ONLINE_SEARCH = True
+
+# 本地文件列表（支持文件路径或文件夹路径）
+TARGET_FILES = ["your_local_files_here"]
+
+# ==========================================
+# 报告类型
+# ==========================================
+
+# 报告模式: "company" (个股深度) 或 "industry" (行业一页纸)
+REPORT_TYPE = "company"
+
+# ==========================================
+# 运行参数
+# ==========================================
 
 MAX_REFLECTIONS = 1
 SEARCH_RESULTS_PER_QUERY = 3
 SEARCH_CONTENT_MAX_LENGTH = 20000
 OUTPUT_DIR = "reports"
 SAVE_INTERMEDIATE_STATES = True
-TARGET_FILES = ["your_local_files_here"]
-ENABLE_ONLINE_SEARCH = True

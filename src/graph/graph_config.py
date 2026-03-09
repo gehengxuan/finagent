@@ -67,7 +67,11 @@ EXECUTION_CONFIG = {
 }
 
 # ==========================================
-# 节点参数配置
+# 节点参数配置（参考 / 文档用途）
+# 
+# 注意: 这些参数目前作为各节点推荐参数的集中记录。
+# LLM 层的 temperature / max_tokens 由各 LLM 实现
+# 在调用时通过 kwargs 传递。
 # ==========================================
 
 NODE_PARAMS = {
@@ -80,8 +84,8 @@ NODE_PARAMS = {
         "max_tokens": 2000
     },
     "reflect": {
-        "temperature": 0.5,
-        "max_tokens": 500
+        "temperature": 0.3,
+        "max_tokens": 2000
     },
     "structure": {
         "temperature": 0.5,

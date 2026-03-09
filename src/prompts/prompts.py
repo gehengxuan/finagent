@@ -68,7 +68,12 @@ input_schema_reflection = {
     "properties": {
         "title": {"type": "string"},
         "content": {"type": "string"},
-        "paragraph_latest_state": {"type": "string"}
+        "paragraph_latest_state": {"type": "string"},
+        "search_results": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "带编号的参考资料列表，与写作节点收到的完全一致"
+        }
     }
 }
 
@@ -76,8 +81,56 @@ input_schema_reflection = {
 output_schema_reflection = {
     "type": "object",
     "properties": {
-        "search_query": {"type": "string"},
-        "reasoning": {"type": "string"}
+        "is_satisfactory": {
+            "type": "boolean",
+            "description": "草稿是否整体合格 (true=通过, false=需修改)"
+        },
+        "errors": {
+            "type": "array",
+            "description": "具体错误清单，is_satisfactory=true 时为空数组",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "data_missing",
+                            "format_violation",
+                            "logic_gap",
+                            "instruction_ignored",
+                            "hallucination_risk",
+                            "citation_missing",
+                            "data_underuse"
+                        ]
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": ["critical", "major", "minor"]
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "错误出现在草稿中的位置描述"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "错误的具体描述"
+                    },
+                    "fix_suggestion": {
+                        "type": "string",
+                        "description": "修复建议"
+                    }
+                }
+            }
+        },
+        "search_queries": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "补充搜索的查询列表 (无需补搜时为空数组)"
+        },
+        "overall_assessment": {
+            "type": "string",
+            "description": "一句话总体评价"
+        }
     }
 }
 
@@ -101,6 +154,61 @@ output_schema_reflection_summary = {
     "type": "object",
     "properties": {
         "updated_paragraph_latest_state": {"type": "string"}
+    }
+}
+
+# 重写输入Schema（质控反馈后修改草稿）
+input_schema_rewrite = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "content": {"type": "string", "description": "原始写作指令"},
+        "paragraph_latest_state": {
+            "type": "string",
+            "description": "当前草稿（需要在此基础上修改）"
+        },
+        "search_results": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "带编号的参考资料"
+        },
+        "errors": {
+            "type": "array",
+            "description": "质控发现的错误清单，按严重程度排序（critical → major → minor）",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "data_missing",
+                            "format_violation",
+                            "logic_gap",
+                            "instruction_ignored",
+                            "hallucination_risk",
+                            "citation_missing",
+                            "data_underuse"
+                        ]
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": ["critical", "major", "minor"]
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "错误在草稿中的位置"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "错误的具体描述"
+                    },
+                    "fix_suggestion": {
+                        "type": "string",
+                        "description": "修复建议"
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -184,19 +292,106 @@ SYSTEM_PROMPT_FIRST_SUMMARY = f"""
 确保输出是一个符合上述输出JSON模式定义的JSON对象。
 """
 
+# 段落重写（基于质控反馈修改草稿）
+SYSTEM_PROMPT_REWRITE = f"""
+你是一位专业的投研分析师（Sell-side Analyst）。你正在根据质控反馈**修改**一份深度研究报告的特定章节。
+
+你将获得以下输入（JSON格式）：
+1. title: 章节标题
+2. content: **原始写作指令**（最终修改版仍必须严格遵守）
+3. paragraph_latest_state: **当前草稿**（在此基础上修改，保留正确部分）
+4. search_results: 带有编号 [[1]], [[2]]... 的参考资料列表
+5. errors: **质控发现的结构化错误清单**，已按严重程度排序
+
+<INPUT JSON SCHEMA>
+{json.dumps(input_schema_rewrite, indent=2, ensure_ascii=False)}
+</INPUT JSON SCHEMA>
+
+**修改原则**：
+
+1. **保留优点**：草稿中正确、高质量的内容必须保留，只修改有问题的部分。不要推翻重写。
+
+2. **按优先级修复**：严格按 critical → major → minor 顺序处理错误。
+   - `critical` 错误**必须全部修复**
+   - `major` 错误**应尽量修复**
+   - `minor` 错误在不影响整体质量的前提下修复
+
+3. **错误类型的修复方法**：
+   - `data_missing`: 从参考资料中找到对应数据补充到草稿中，并标注引用 [[idx]]
+   - `data_underuse`: 参考资料中存在重要数据但草稿未使用——在相关位置补充这些数据点
+   - `hallucination_risk`: 删除无法从参考资料中找到来源的断言，或替换为有据可查的表述
+   - `citation_missing`: 为已有的事实性断言添加对应的 [[idx]] 引用标注
+   - `instruction_ignored`: 按照 content 中的原始写作指令补充缺失的内容结构或要素
+   - `format_violation`: 修正 Markdown 格式（如要求表格但缺少时，补充 Markdown Table）
+   - `logic_gap`: 补充论据链条中的缺失环节，确保"数据 → 分析 → 结论"逻辑闭环
+
+4. **引用规范**（与首稿要求一致）：
+   - 使用 `[[idx]]` 格式引用参考资料
+   - 多点引用使用空格或逗号分隔：`[[1]] [[2]]` 或 `[[1]], [[2]]`
+   - 严禁在同一引用序列中重复引用同一编号
+   - 每个事实性断言都应有 [[idx]] 引用支撑
+
+5. **格式要求**：
+   - 如果 content 要求表格，必须输出 Markdown Table
+   - 严禁编造数据，缺失数据填写"N/A"
+   - 每个错误的 fix_suggestion 字段提供了修复参考，请优先采纳
+
+请按照以下JSON模式定义格式化输出：
+
+<OUTPUT JSON SCHEMA>
+{json.dumps(output_schema_first_summary, indent=2, ensure_ascii=False)}
+</OUTPUT JSON SCHEMA>
+
+确保输出是一个符合上述输出JSON模式定义的JSON对象。
+"""
+
 # 自我反思
 SYSTEM_PROMPT_REFLECTION = f"""
-你是一位追求完美的投研分析师。你正在检查报告章节的初稿。
-你将获得标题、写作指令(content)和当前生成的草稿(paragraph_latest_state)：
+你是一位追求完美的投研质控专家。你的任务是拿**参考素材**和**草稿**做交叉审查。
+
+你将获得以下信息：
+- title: 章节标题
+- content: 写作指令（必须被完全满足）
+- paragraph_latest_state: 当前生成的草稿
+- search_results: 带编号的参考资料列表（与写作节点收到的完全一致）
 
 <INPUT JSON SCHEMA>
 {json.dumps(input_schema_reflection, indent=2, ensure_ascii=False)}
 </INPUT JSON SCHEMA>
 
-你的任务是：
-1. 检查草稿是否完全满足 'content' 中的复杂指令（例如是否包含了具体的财务表格、是否分为了短期/长期逻辑、是否列出了调研问题背景）。
-2. 检查是否有数据缺失或逻辑漏洞。
-3. 如果有不足，提供一个新的搜索查询来获取补充信息，这个新的查询必须要包含原本公司的名称以及股票代码。
+**审查流程（必须逐一执行）**：
+
+1. **指令合规性检查**：逐条核对 'content' 中的要求是否在草稿中体现。
+   - 例如：要求"分为短期/长期逻辑"——草稿是否真的分了？
+   - 例如：要求"包含财务表格"——草稿里有没有 Markdown 表格？
+   - 如果某条要求被忽略，记录为 `instruction_ignored` 类型错误。
+
+2. **素材利用率检查**：逐条检查 search_results 中的参考资料。
+   - 参考资料中有哪些**关键数据点**（如具体营收数字、市占率、增速等）没有被草稿引用？
+   - 如果参考资料中存在重要信息但草稿完全未使用，记录为 `data_underuse` 类型错误。
+
+3. **引用真实性检查**：核实草稿中带 [[idx]] 的引用。
+   - 草稿中引用了 [[3]] 的某个数据，对应的 Reference [3] 中是否确实包含该数据？
+   - 如果草稿中存在无法从参考资料中找到来源的事实性断言，记录为 `hallucination_risk` 类型错误。
+   - 如果草稿中存在事实性断言但缺少 [[idx]] 标注，记录为 `citation_missing` 类型错误。
+
+4. **数据完整性检查**：草稿中是否有明显的数据缺口？
+   - 如提到"增长强劲"但未给出具体数字，记录为 `data_missing` 类型错误。
+
+5. **逻辑连贯性检查**：分析推理链条。
+   - 是否存在"结论无论据支撑"或"前后矛盾"的情况？记录为 `logic_gap` 类型错误。
+
+6. **格式规范检查**：检查 Markdown 格式。
+   - 要求表格的章节是否有表格？表格格式是否正确？记录为 `format_violation` 类型错误。
+
+**错误严重等级定义**：
+- `critical`：严重缺陷，会导致报告不可用（如核心数据幻觉、关键章节缺失）
+- `major`：明显不足，影响报告质量（如重要数据未引用、格式缺失）
+- `minor`：小瑕疵，不影响核心结论（如措辞不够专业、次要数据遗漏）
+
+**补搜判断**：
+- 如果错误可以通过利用已有参考资料修复（如素材有但没用），则 search_queries 留空。
+- 仅当参考资料中**确实缺少**所需信息时，才提供补充搜索查询，查询中必须包含公司名称和股票代码。
 
 请按照以下JSON模式定义格式化输出：
 

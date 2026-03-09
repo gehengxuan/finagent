@@ -3,6 +3,6 @@
 定义Deep Search Agent的状态数据结构
 """
 
-from .state import SectionState,SectionMetadata, SectionOutput, reduce_list, reduce_query, reduce_overwrite, AgentState
+from .state import SectionState, SectionOutput, reduce_list, reduce_query, AgentState
 
-__all__ = ["SectionState", "SectionMetadata", "SectionOutput", "reduce_list", "reduce_query", "reduce_overwrite", "AgentState"]
+__all__ = ["SectionState", "SectionOutput", "reduce_list", "reduce_query", "AgentState"]

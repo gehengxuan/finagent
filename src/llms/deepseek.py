@@ -4,22 +4,16 @@ DeepSeek LLM实现
 """
 
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from openai import OpenAI
-from .base import BaseLLM
+from .base import BaseLLM, LLMResponse
 
 
 class DeepSeekLLM(BaseLLM):
     """DeepSeek LLM实现类"""
     
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
-        """
-        初始化DeepSeek客户端
-        
-        Args:
-            api_key: DeepSeek API密钥，如果不提供则从环境变量读取
-            model_name: 模型名称，默认使用deepseek-chat
-        """
+        """初始化DeepSeek客户端"""
         if api_key is None:
             api_key = os.getenv("DEEPSEEK_API_KEY")
             if not api_key:
@@ -27,7 +21,6 @@ class DeepSeekLLM(BaseLLM):
         
         super().__init__(api_key, model_name)
         
-        # 初始化OpenAI客户端，使用DeepSeek的endpoint
         self.client = OpenAI(
             api_key=self.api_key,
             base_url="https://api.deepseek.com"
@@ -39,55 +32,46 @@ class DeepSeekLLM(BaseLLM):
         """获取默认模型名称"""
         return "deepseek-chat"
     
-    def invoke(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+    def invoke(self, messages: List[Any], **kwargs) -> LLMResponse:
         """
         调用DeepSeek API生成回复
         
         Args:
-            system_prompt: 系统提示词
-            user_prompt: 用户输入
-            **kwargs: 其他参数，如temperature、max_tokens等
+            messages: 消息列表 (LangChain Message 对象或 dict)
+            **kwargs: temperature, max_tokens, response_format 等
             
         Returns:
-            DeepSeek生成的回复文本
+            LLMResponse 对象
         """
+        normalized = self._normalize_messages(messages)
+        
+        params = {
+            "model": self.default_model,
+            "messages": normalized,
+            "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", 4000),
+            "stream": False
+        }
+        
+        # 支持 JSON Mode
+        if kwargs.get("response_format", {}).get("type") == "json_object":
+            params["response_format"] = {"type": "json_object"}
+        
         try:
-            # 构建消息
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-            
-            # 设置默认参数
-            params = {
-                "model": self.default_model,
-                "messages": messages,
-                "temperature": kwargs.get("temperature", 0.7),
-                "max_tokens": kwargs.get("max_tokens", 4000),
-                "stream": False
-            }
-            
-            # 调用API
             response = self.client.chat.completions.create(**params)
             
-            # 提取回复内容
             if response.choices and response.choices[0].message:
-                content = response.choices[0].message.content
-                return self.validate_response(content)
+                content = response.choices[0].message.content or ""
+                return LLMResponse(self.validate_response(content))
             else:
-                return ""
+                return LLMResponse("")
                 
         except Exception as e:
             print(f"DeepSeek API调用错误: {str(e)}")
-            raise e
+            raise
     
     def get_model_info(self) -> Dict[str, Any]:
-        """
-        获取当前模型信息
-        
-        Returns:
-            模型信息字典
-        """
+        """获取当前模型信息"""
         return {
             "provider": "DeepSeek",
             "model": self.default_model,

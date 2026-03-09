@@ -1,6 +1,6 @@
 """
 工具函数模块
-提供文本处理、JSON解析等辅助功能
+提供文本处理、JSON解析、搜索结果去重等辅助功能
 """
 
 from .text_processing import (
@@ -8,8 +8,9 @@ from .text_processing import (
     clean_markdown_tags, 
     remove_reasoning_from_output,
     extract_clean_response,
-    update_state_with_search_results,
-    format_search_results_for_prompt
+    format_search_results_for_prompt,
+    get_doc_key,
+    deduplicate_search_results,
 )
 
 from .config import Config, load_config
@@ -19,8 +20,9 @@ __all__ = [
     "clean_markdown_tags",
     "remove_reasoning_from_output", 
     "extract_clean_response",
-    "update_state_with_search_results",
     "format_search_results_for_prompt",
+    "get_doc_key",
+    "deduplicate_search_results",
     "Config",
     "load_config"
 ]

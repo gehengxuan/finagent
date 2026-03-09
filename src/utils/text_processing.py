@@ -1,12 +1,61 @@
 """
 文本处理工具函数
-用于清理LLM输出、解析JSON等
+用于清理LLM输出、解析JSON、搜索结果去重等
 """
 
 import re
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from json.decoder import JSONDecodeError
+
+
+# ==========================================
+# 搜索结果去重（共享逻辑）
+# ==========================================
+
+def get_doc_key(item: Dict[str, Any]) -> str:
+    """
+    生成搜索结果文档的唯一键，用于去重。
+    
+    策略: 优先使用 URL（如果存在且非本地路径），否则使用 title。
+    
+    Args:
+        item: 搜索结果字典，需包含 'url' 和/或 'title' 字段
+        
+    Returns:
+        用于去重的唯一键字符串
+    """
+    url = item.get('url', '') if isinstance(item, dict) else ''
+    title = item.get('title', '') if isinstance(item, dict) else ''
+    
+    if url and len(url) > 5 and '本地' not in url:
+        return url
+    return title
+
+
+def deduplicate_search_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    对搜索结果列表进行去重（保持顺序）。
+    
+    Args:
+        results: 搜索结果列表
+        
+    Returns:
+        去重后的搜索结果列表
+    """
+    seen_keys: set = set()
+    deduplicated: List[Dict[str, Any]] = []
+    
+    for item in results:
+        key = get_doc_key(item)
+        if key and key not in seen_keys:
+            deduplicated.append(item)
+            seen_keys.add(key)
+        elif not key:
+            # key 为空（无 url 也无 title），保留
+            deduplicated.append(item)
+    
+    return deduplicated
 
 
 def clean_json_tags(text: str) -> str:
@@ -109,34 +158,6 @@ def extract_clean_response(text: str) -> Dict[str, Any]:
     # 如果所有方法都失败，返回错误信息
     print(f"无法解析JSON响应: {cleaned_text[:200]}...")
     return {"error": "JSON解析失败", "raw_text": cleaned_text}
-
-
-def update_state_with_search_results(search_results: List[Dict[str, Any]], 
-                                   paragraph_index: int, state: Any) -> Any:
-    """
-    将搜索结果更新到状态中
-    
-    Args:
-        search_results: 搜索结果列表
-        paragraph_index: 段落索引
-        state: 状态对象
-        
-    Returns:
-        更新后的状态对象
-    """
-    if 0 <= paragraph_index < len(state.paragraphs):
-        # 获取最后一次搜索的查询（假设是当前查询）
-        current_query = ""
-        if search_results:
-            # 从搜索结果推断查询（这里需要改进以获取实际查询）
-            current_query = "搜索查询"
-        
-        # 添加搜索结果到状态
-        state.paragraphs[paragraph_index].research.add_search_results(
-            current_query, search_results
-        )
-    
-    return state
 
 
 def validate_json_schema(data: Dict[str, Any], required_fields: List[str]) -> bool:
