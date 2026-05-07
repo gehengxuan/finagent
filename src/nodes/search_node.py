@@ -1,27 +1,62 @@
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
 from ..state.state import SectionState
-from ..tools.lightrag_search import LightRAGSearch
 from ..prompts.prompts import SYSTEM_PROMPT_FIRST_SEARCH
 from ..utils import load_config
 from ..utils.text_processing import get_doc_key
 
 
+# ---------------------------------------------------------------------------
+# 搜索后端路由
+# ---------------------------------------------------------------------------
+
+def _build_search_backends(config):
+    """根据配置构建搜索后端列表，按优先级排列。"""
+    backends = []
+
+    # 1. 本地文件（如果配置了 local_files）
+    if config.local_files:
+        from ..tools.local_file_search import LocalFileSearch
+        backends.append(("local", LocalFileSearch(file_paths=config.local_files)))
+
+    # 2. 在线搜索（Tavily）
+    if config.enable_online_search and config.tavily_api_key:
+        from ..tools.tavily_search import TavilySearch
+        backends.append(("tavily", TavilySearch(api_key=config.tavily_api_key)))
+
+    # 3. LightRAG（兜底，如果以上都没配就尝试）
+    if not backends:
+        try:
+            from ..tools.lightrag_search import LightRAGSearch
+            backends.append(("lightrag", LightRAGSearch()))
+        except Exception as e:
+            print(f"  > [Warning] LightRAG 初始化失败: {e}")
+
+    return backends
+
+
 def search_node(state: SectionState, llm):
     """
-    搜索节点：支持【初次意图生成】和【反思补搜】两种模式
+    搜索节点：支持【初次意图生成】和【反思补搜】两种模式。
+
+    搜索后端按配置自动选择：
+      - config.local_files 有值 → 本地文件检索
+      - config.enable_online_search=True → Tavily 网络搜索
+      - 以上都没配 → 回退到 LightRAG
+    多个后端同时存在时结果合并。
     """
-    # 延迟初始化搜索工具（每次调用时从缓存配置获取）
-    rag_tool = LightRAGSearch()
-    
+    config = load_config()
+    backends = _build_search_backends(config)
+
+    if not backends:
+        print("  > ⚠️ 没有可用的搜索后端，请检查 config")
+        return {"search_results": state.get("search_results", []), "feedback_search_query": None}
+
     query_to_search = ""
     search_reasoning = ""
     
-    # --- 修改点 1：使用字典方式访问 section_def ---
     section_def = state["section_def"]
-    # 确保 section_def 是字典
     if not isinstance(section_def, dict):
-        # 兼容性处理：如果是对象则转字典，或者直接报错
         try:
             section_def = section_def.__dict__
         except:
@@ -39,25 +74,27 @@ def search_node(state: SectionState, llm):
         query_to_search, search_reasoning = _generate_initial_query(state, llm)
         print(f"  > 生成查询: {query_to_search}")
 
-    # 执行搜索
-    try:
-        results = rag_tool.search(query_to_search, max_results=5)
-    except Exception as e:
-        print(f"  > [Error] 搜索工具调用失败: {e}")
-        results = []
-
-    # 格式化结果
+    # 从所有后端收集结果
+    max_per_backend = config.max_search_results or 5
     new_info = []
-    if results:
-        print(f"  > 获得 {len(results)} 条结果")
+    for backend_name, backend in backends:
+        try:
+            results = backend.search(query_to_search, max_results=max_per_backend)
+        except Exception as e:
+            print(f"  > [Error] {backend_name} 搜索失败: {e}")
+            results = []
+
         for res in results:
             snippet = {
-                "title": res.get('title', '未知标题'), # <--- 加上这一行！
-                "content": f"【来源: {res.get('title', '未知')}】\n{res.get('content', '')}",
+                "title": res.get("title", "未知标题"),
+                "content": res.get("content", ""),
                 "url": res.get("url", ""),
-                "query": query_to_search
+                "query": query_to_search,
             }
             new_info.append(snippet)
+
+    if new_info:
+        print(f"  > 获得 {len(new_info)} 条结果")
     else:
         print("  > ⚠️ 未搜索到有效信息")
 

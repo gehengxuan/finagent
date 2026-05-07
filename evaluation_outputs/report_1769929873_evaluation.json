@@ -1,0 +1,86 @@
+{
+  "report_path": "/Users/ghx/Desktop/工作/毕业设计/DeepSearchAgent-Demo-function 2/reports/company_reports/report_1769929873.md",
+  "evaluation": {
+    "structure": {
+      "expected_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "found_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "missing_sections": [],
+      "unexpected_sections": [],
+      "section_coverage": 1.0,
+      "ordered_correctly": true,
+      "financial_table_present": true,
+      "structure_score": 1.0
+    },
+    "citations": {
+      "reference_count": 14,
+      "reference_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "citation_count": 43,
+      "unique_citation_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13
+      ],
+      "orphan_citations": [],
+      "citation_valid_rate": 1.0,
+      "duplicate_adjacent_count": 0,
+      "citation_score": 1.0
+    },
+    "claims": {
+      "numeric_claim_count": 17,
+      "cited_numeric_claim_count": 10,
+      "uncited_numeric_claim_count": 7,
+      "numeric_claim_citation_rate": 0.5882,
+      "uncited_numeric_claim_examples": [
+        "5. 调研问题大纲",
+        "【背景】宁德时代控股股东瑞庭投资持有公司23.6%股份，并通过控股邦普循环（电池回收）、时代电服（换电运营）等资产构建闭环生态；市场普遍预期集团内优质资产存在分步资本化可能，但尚未有明确注入路径披露。",
+        "【背景】公司2023年公告拟转让部分低效参股项目股权（如某固态电池初创企业少数股权），并收缩部分区域PACK代工业务；2023年该类业务合计亏损约4.2亿元，拖累整体净利率约0.3pct。",
+        "【问题】1. 上述资产转让事项目前进展如何？预计何时完成交割及资金回笼？2. 剥离后对应负债是否同步出表？对资产负债率及利息支出的影响程度如何量化？3. 完成收缩后，公司管理费用率目标值是多少？能否释放出多少自由现金流用于研发投入或股东回报？",
+        "【背景】2024年国内动力电池行业产能利用率中位数约58%（GGII），头部厂商虽高于均值，但二线厂商低价抢单加剧价格竞争；公司2024Q3动力板块毛利率环比微降0.4pct，反映短期承压。"
+      ]
+    },
+    "scores": {
+      "overall_score": 0.9176,
+      "structure_score": 1.0,
+      "citation_score": 1.0,
+      "claim_score": 0.5882
+    }
+  }
+}

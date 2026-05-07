@@ -8,7 +8,7 @@ import asyncio
 from typing import Optional
 
 from .graph.builder import GraphFactory
-from .utils import load_config
+from .utils import Config, load_config, set_config
 
 
 class StructuredReportAgent:
@@ -20,9 +20,19 @@ class StructuredReportAgent:
         report = agent.generate_report("宁德时代投资价值分析")
     """
     
-    def __init__(self):
-        """初始化 Agent"""
-        self.graph = GraphFactory.create_graph()
+    def __init__(self, config: Optional[Config] = None, config_file: Optional[str] = None):
+        """初始化 Agent。"""
+        if config is not None and config_file is not None:
+            raise ValueError("config 和 config_file 不能同时传入")
+
+        if config is not None:
+            self.config = set_config(config)
+        elif config_file is not None:
+            self.config = load_config(config_file=config_file, force_reload=True)
+        else:
+            self.config = load_config()
+
+        self.graph = GraphFactory.create_graph(config=self.config)
         self._invoke_config = GraphFactory.get_invoke_config()
         print("✅ StructuredReportAgent 初始化完成")
     
@@ -83,6 +93,6 @@ class StructuredReportAgent:
 
 
 # 便利函数
-def create_agent() -> StructuredReportAgent:
+def create_agent(config: Optional[Config] = None, config_file: Optional[str] = None) -> StructuredReportAgent:
     """创建 Agent 实例"""
-    return StructuredReportAgent()
+    return StructuredReportAgent(config=config, config_file=config_file)

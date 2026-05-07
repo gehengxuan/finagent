@@ -13,7 +13,7 @@ from .text_processing import (
     deduplicate_search_results,
 )
 
-from .config import Config, load_config
+from .config import Config, load_config, set_config, clear_config_cache
 
 __all__ = [
     "clean_json_tags",
@@ -24,5 +24,7 @@ __all__ = [
     "get_doc_key",
     "deduplicate_search_results",
     "Config",
-    "load_config"
+    "load_config",
+    "set_config",
+    "clear_config_cache"
 ]

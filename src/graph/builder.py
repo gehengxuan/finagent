@@ -431,9 +431,9 @@ class GraphFactory:
         return llm
     
     @staticmethod
-    def create_graph() -> Any:
+    def create_graph(config=None) -> Any:
         """创建完整的图（子图 + 主图）"""
-        config = load_config()
+        config = config or load_config()
         llm = GraphFactory._create_llm(config)
         
         # 构建子图

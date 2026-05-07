@@ -1,137 +1,97 @@
-"""
-高级使用示例
-演示Deep Search Agent的高级功能
+"""高级使用示例。
+
+演示如何通过显式 Config 注入的方式运行多次研报生成，
+而不依赖修改根目录下的 config.py。
 """
 
 import os
 import sys
+import hashlib
+import re
+import time
+from pathlib import Path
 
-# 添加项目根目录到Python路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src import DeepSearchAgent, Config
+from src import Config, StructuredReportAgent
 from src.utils.config import print_config
 
 
+def build_custom_config(output_dir: str) -> Config:
+    if os.getenv("OPENAI_API_KEY"):
+        provider = "openai"
+    else:
+        provider = "qwen"
+
+    return Config(
+        default_llm_provider=provider,
+        dashscope_api_key=os.getenv("DASHSCOPE_API_KEY"),
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        qwen_model="qwen-plus",
+        openai_model="gpt-4o-mini",
+        max_search_results=5,
+        max_reflections=2,
+        max_content_length=15000,
+        output_dir=output_dir,
+        save_intermediate_states=False,
+        enable_online_search=False,
+        local_files=[],
+        report_type="company",
+    )
+
+
+def build_stable_report_name(index: int, query: str) -> str:
+    # 用 query 的稳定哈希构造可复现文件名，避免 Python 进程级 hash 随机化。
+    query_hash = hashlib.sha1(query.encode("utf-8")).hexdigest()[:10]
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", query.lower()).strip("-")
+    slug = slug[:30] if slug else "report"
+    return f"report_{index:02d}_{slug}_{query_hash}.md"
+
+
+def save_report(output_dir: Path, index: int, query: str, report: str) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filename = build_stable_report_name(index=index, query=query)
+    report_path = output_dir / filename
+    report_path.write_text(report, encoding="utf-8")
+    return report_path
+
+
 def advanced_example():
-    """高级使用示例"""
     print("=" * 60)
-    print("Deep Search Agent - 高级使用示例")
+    print("StructuredReportAgent - 高级使用示例")
     print("=" * 60)
-    
-    try:
-        # 自定义配置
-        print("正在创建自定义配置...")
-        config = Config(
-            # 使用OpenAI而不是DeepSeek
-            default_llm_provider="openai",
-            openai_model="gpt-4o-mini",
-            # 自定义搜索参数
-            max_search_results=5,  # 更多搜索结果
-            max_reflections=3,     # 更多反思次数
-            max_content_length=15000,
-            # 自定义输出
-            output_dir="custom_reports",
-            save_intermediate_states=True
-        )
-        
-        # 从环境变量设置API密钥
-        config.openai_api_key = os.getenv("OPENAI_API_KEY")
-        config.tavily_api_key = os.getenv("TAVILY_API_KEY")
-        
-        if not config.validate():
-            print("配置验证失败，请检查API密钥设置")
-            return
-        
-        print_config(config)
-        
-        # 创建Agent
-        print("正在初始化Agent...")
-        agent = DeepSearchAgent(config)
-        
-        # 执行多个研究任务
-        queries = [
-            "深度学习在医疗领域的应用",
-            "区块链技术的最新发展",
-            "可持续能源技术趋势"
-        ]
-        
-        for i, query in enumerate(queries, 1):
-            print(f"\n{'='*60}")
-            print(f"执行研究任务 {i}/{len(queries)}: {query}")
-            print(f"{'='*60}")
-            
-            try:
-                # 执行研究
-                final_report = agent.research(query, save_report=True)
-                
-                # 保存状态（示例）
-                state_file = f"custom_reports/state_task_{i}.json"
-                agent.save_state(state_file)
-                
-                print(f"任务 {i} 完成")
-                print(f"报告长度: {len(final_report)} 字符")
-                
-                # 显示进度
-                progress = agent.get_progress_summary()
-                print(f"完成进度: {progress['progress_percentage']:.1f}%")
-                
-            except Exception as e:
-                print(f"任务 {i} 失败: {str(e)}")
-                continue
-        
-        print(f"\n{'='*60}")
-        print("所有研究任务完成！")
-        print(f"{'='*60}")
-        
-    except Exception as e:
-        print(f"高级示例运行失败: {str(e)}")
 
+    config = build_custom_config(output_dir="custom_reports")
+    if not config.validate():
+        print("配置验证失败，请先设置 DASHSCOPE_API_KEY 或 OPENAI_API_KEY")
+        return
 
-def state_management_example():
-    """状态管理示例"""
-    print("\n" + "=" * 60)
-    print("状态管理示例")
-    print("=" * 60)
-    
-    try:
-        # 创建配置
-        config = Config.from_env()
-        if not config.validate():
-            print("配置验证失败")
-            return
-        
-        # 创建Agent
-        agent = DeepSearchAgent(config)
-        
-        query = "量子计算的发展现状"
-        print(f"开始研究: {query}")
-        
-        # 执行研究
-        final_report = agent.research(query)
-        
-        # 保存状态
-        state_file = "custom_reports/quantum_computing_state.json"
-        agent.save_state(state_file)
-        print(f"状态已保存到: {state_file}")
-        
-        # 创建新的Agent并加载状态
-        print("\n创建新Agent并加载状态...")
-        new_agent = DeepSearchAgent(config)
-        new_agent.load_state(state_file)
-        
-        # 检查加载的状态
-        progress = new_agent.get_progress_summary()
-        print("加载的状态信息:")
-        print(f"- 查询: {new_agent.state.query}")
-        print(f"- 报告标题: {new_agent.state.report_title}")
-        print(f"- 段落数: {progress['total_paragraphs']}")
-        print(f"- 完成状态: {progress['is_completed']}")
-        
-    except Exception as e:
-        print(f"状态管理示例失败: {str(e)}")
+    print_config(config)
+    agent = StructuredReportAgent(config=config)
+
+    queries = [
+        "分析苹果公司在 AI 终端生态中的竞争优势、财务质量与主要风险。",
+        "分析英伟达在 AI 芯片与数据中心平台中的竞争优势、财务质量与主要风险。",
+    ]
+
+    output_dir = Path(config.output_dir)
+    for index, query in enumerate(queries, start=1):
+        print(f"\n{'=' * 60}")
+        print(f"执行任务 {index}/{len(queries)}: {query}")
+        print(f"{'=' * 60}")
+
+        start_time = time.time()
+        try:
+            report = agent.generate_report(query)
+            report_path = save_report(output_dir, index, query, report)
+            elapsed = time.time() - start_time
+
+            print(f"✅ 任务完成，用时 {elapsed:.1f}s")
+            print(f"📄 报告长度: {len(report)} 字符")
+            print(f"📂 保存路径: {report_path}")
+        except Exception as exc:
+            print(f"❌ 任务失败: {exc}")
 
 
 if __name__ == "__main__":
     advanced_example()
-    state_management_example()

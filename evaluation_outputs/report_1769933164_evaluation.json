@@ -1,0 +1,88 @@
+{
+  "report_path": "/Users/ghx/Desktop/工作/毕业设计/DeepSearchAgent-Demo-function 2/reports/company_reports/report_1769933164.md",
+  "evaluation": {
+    "structure": {
+      "expected_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "found_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "missing_sections": [],
+      "unexpected_sections": [],
+      "section_coverage": 1.0,
+      "ordered_correctly": true,
+      "financial_table_present": true,
+      "structure_score": 1.0
+    },
+    "citations": {
+      "reference_count": 16,
+      "reference_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "citation_count": 33,
+      "unique_citation_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        11,
+        13,
+        14,
+        16
+      ],
+      "orphan_citations": [],
+      "citation_valid_rate": 1.0,
+      "duplicate_adjacent_count": 0,
+      "citation_score": 1.0
+    },
+    "claims": {
+      "numeric_claim_count": 20,
+      "cited_numeric_claim_count": 9,
+      "uncited_numeric_claim_count": 11,
+      "numeric_claim_citation_rate": 0.45,
+      "uncited_numeric_claim_examples": [
+        "边际变化方面：2024年Q3宁德时代实现单季营收1068亿元（同比+20.6%，环比+12.3%），主要受益于神行电池规模化装车（理想MEGA、小米SU7等车型搭载）及海外收入占比提升至28.4%（2023年为22.1%）；痛点在于磷酸铁锂电池价格战加剧导致Q3毛利率环比回落1.2pct至22.3%，二线厂商低价抢单压力未减；同时，固态电池产业化进度慢于市场乐观预期（全固态样车路测尚未公开，半固态装车仅限极少量高端车型），技术代际领先优势面临阶段性收敛。",
+        "【问题】1）公司是否参与国家能源局/工信部主导的新型储能技术攻关专项？相关技术成果是否具备独立资本化条件？2）控股股东对旗下前沿技术（如硫化物固态电解质、锂金属负极）的知识产权归属及商业化路径是否有明确安排？3）若未来涉及重大技术平台整合，公司拟采取股权合作、委托运营还是资产收购等方式？是否存在可量化的推进节点？",
+        "【背景】公司2023年公告拟转让部分参股的锂矿项目权益（如金昆仑锂业少数股权），并收缩低毛利电池租赁运营业务；2024H1其他业务亏损收窄至-1.2亿元（2022年为-8.7亿元），但仍拖累整体净利率约0.4pct。",
+        "【背景】2024年国内动力电池装机量同比增长23.1%，但二线厂商报价较宁德时代低8–12%，叠加车企自供比例提升（比亚迪弗迪电池外供加速），行业呈现结构性“内卷”。",
+        "【问题】1）当前神行电池在主机厂订单中的交付占比已达多少？对应ASP较常规LFP电池高多少？2）欧洲客户（如宝马、Stellantis）对本地化供应的认证进度如何？匈牙利工厂良率是否已达92%+行业基准？3）面对2025年固态电池产业化窗口期临近，公司在电解质材料、界面工程等关键环节的专利储备与量产验证节点是否可控？"
+      ]
+    },
+    "scores": {
+      "overall_score": 0.89,
+      "structure_score": 1.0,
+      "citation_score": 1.0,
+      "claim_score": 0.45
+    }
+  }
+}

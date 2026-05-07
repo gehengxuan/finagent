@@ -1,0 +1,92 @@
+{
+  "report_path": "/Users/ghx/Desktop/工作/毕业设计/DeepSearchAgent-Demo-function 2/reports/company_reports/report_1769344304.md",
+  "evaluation": {
+    "structure": {
+      "expected_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "found_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "missing_sections": [],
+      "unexpected_sections": [],
+      "section_coverage": 1.0,
+      "ordered_correctly": true,
+      "financial_table_present": true,
+      "structure_score": 1.0
+    },
+    "citations": {
+      "reference_count": 16,
+      "reference_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "citation_count": 106,
+      "unique_citation_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "orphan_citations": [],
+      "citation_valid_rate": 1.0,
+      "duplicate_adjacent_count": 1,
+      "citation_score": 0.9969
+    },
+    "claims": {
+      "numeric_claim_count": 13,
+      "cited_numeric_claim_count": 6,
+      "uncited_numeric_claim_count": 7,
+      "numeric_claim_citation_rate": 0.4615,
+      "uncited_numeric_claim_examples": [
+        "边际变化方面：2024年宁德时代率先量产交付神行LFP超充电池（充电10分钟续航400km），已配套阿维塔、小米SU7等车型，技术领先性加速兑现；痛点方面：二线车企压价加剧，2024H1动力电池均价同比下滑约18%，叠加锂价低位震荡，单位盈利承压；但公司通过一体化碳酸锂布局（宜春基地）、产线智能化降本（单GWh人工成本下降23%）及海外本地化建厂（德国工厂良率升至92%）对冲压力，体现结构性优势而非单纯周期博弈。",
+        "【背景】市场普遍预期宁德时代作为福建省属国资控股平台（控股股东为瑞庭投资，实控人为曾毓群），在新能源产业集群整合中承担区域龙头职能；2023年福建出台《新时代民营经济强省战略》，明确提出支持宁德时代牵头组建省级新能源产业创新联合体。",
+        "【问题】1. 请说明控股股东对省内优质锂电材料、回收及氢能资产的资本化路径是否已有明确规划？公司在该类资产整合中是主导方还是协同方？2. 近期董事会增设‘前沿技术产业化推进委员会’，是否意味着将加速推进固态电池公司、邦普循环分拆或引入战投？是否存在2025年内落地的具体时间表？3. 新任CTO黄世霖分管技术产业化，其团队在硫化物固态电解质中试线上的进展，是否影响公司对相关资产的估值方式（如采用PS而非PE）？",
+        "【背景】公司2023年公告拟转让部分参股子公司股权（如江苏时代新能源科技有限公司10%股权），并持续收缩低毛利PACK代工业务。",
+        "【问题】1. 上述资产处置事项目前交割进度如何？预计2024年内可回笼现金规模及对有息负债压降的贡献？2. 剥离后PACK业务收入占比将由2022年的12%降至5%以下，该调整对整体毛利率弹性有多大（请量化单位百分点影响）？3. 是否存在进一步剥离标准（如ROIC低于12%的子公司）？未来三年非主业资产处置节奏是否有明确规划？"
+      ]
+    },
+    "scores": {
+      "overall_score": 0.8914,
+      "structure_score": 1.0,
+      "citation_score": 0.9969,
+      "claim_score": 0.4615
+    }
+  }
+}

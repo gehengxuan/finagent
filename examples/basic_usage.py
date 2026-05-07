@@ -14,7 +14,7 @@ from src.agent import StructuredReportAgent
 from src.utils.config import load_config, print_config
 
 
-def print_environment_info():
+def print_environment_info(output_dir: str):
     """打印环境信息"""
     print("\n" + "="*60)
     print("📋 环境信息")
@@ -22,16 +22,14 @@ def print_environment_info():
     print(f"当前Python版本: {sys.version.split()[0]}")
     print(f"当前工作目录: {os.getcwd()}")
     print(f"项目根目录: {src_dir}")
-    print(f"报告保存目录: {os.path.join(current_dir, '../reports')}")
+    print(f"报告保存目录: {output_dir}")
     print(f"系统平台: {sys.platform}")
     print("="*60 + "\n")
 
 
-def print_config_details():
+def print_config_details(config):
     """打印详细的配置信息"""
     try:
-        config = load_config()
-        
         print("\n" + "="*60)
         print("⚙️  项目配置信息")
         print("="*60)
@@ -99,16 +97,24 @@ def print_config_details():
 
 def main():
     """主程序"""
+    try:
+        config = load_config()
+    except Exception as e:
+        print(f"\n⚠️  配置加载失败: {e}")
+        print("请确保已正确配置 config.py 文件\n")
+        return
+
+    configured_output_dir = os.path.abspath(config.output_dir)
     
     # 1. 打印环境和配置信息
-    print_environment_info()
+    print_environment_info(configured_output_dir)
     
-    if not print_config_details():
+    if not print_config_details(config):
         print("❌ 配置验证失败，程序退出")
         return
     
     # 2. 初始化 Agent
-    print("🤖 正在初始化 DeepSearchAgent...")
+    print("🤖 正在初始化 StructuredReportAgent...")
     try:
         agent = StructuredReportAgent()
         print("✅ Agent 初始化成功\n")
@@ -117,7 +123,7 @@ def main():
         return
     
     # 3. 运行任务
-    query = "分析宁德时代在新能源汽车产业链中的竞争优势及未来发展前景"
+    query = "分析velo3d的竞争优势及未来发展前景"
     
     print("\n" + "="*60)
     print("📝 开始生成研报")
@@ -135,7 +141,7 @@ def main():
         duration = end_time - start_time
         
         # 4. 保存结果
-        output_dir = os.path.join(current_dir, "../reports/company_reports")
+        output_dir = configured_output_dir
         os.makedirs(output_dir, exist_ok=True)
         
         filename = f"report_{int(time.time())}.md"

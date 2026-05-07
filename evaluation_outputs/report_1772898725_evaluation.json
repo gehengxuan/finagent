@@ -1,0 +1,71 @@
+{
+  "report_path": "/Users/ghx/Desktop/工作/毕业设计/DeepSearchAgent-Demo-function 2/reports/company_reports/report_1772898725.md",
+  "evaluation": {
+    "structure": {
+      "expected_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "found_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "missing_sections": [],
+      "unexpected_sections": [],
+      "section_coverage": 1.0,
+      "ordered_correctly": true,
+      "financial_table_present": true,
+      "structure_score": 1.0
+    },
+    "citations": {
+      "reference_count": 8,
+      "reference_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "citation_count": 52,
+      "unique_citation_ids": [
+        1,
+        2,
+        3,
+        4,
+        8
+      ],
+      "orphan_citations": [],
+      "citation_valid_rate": 1.0,
+      "duplicate_adjacent_count": 0,
+      "citation_score": 1.0
+    },
+    "claims": {
+      "numeric_claim_count": 15,
+      "cited_numeric_claim_count": 12,
+      "uncited_numeric_claim_count": 3,
+      "numeric_claim_citation_rate": 0.8,
+      "uncited_numeric_claim_examples": [
+        "公司营收与利润保持稳健增长，2023年毛利率与净利率较2022年低点有所修复，2024年前三季度毛利率与净利率分别为21.5%和10.0%，反映成本控制与产品结构优化成效。经营性现金流持续强劲（2023年达693.1亿元），远超同期净利润，显示主业造血能力优异。资产负债率在2024Q3小幅上升至64.0%，但账上现金充裕（2023年末货币资金超1800亿元），财务安全垫厚实，具备持续资本开支与抗周期能力。",
+        "【影响分析】原材料成本每上涨10万元/吨，预计影响毛利率约1-1.5个百分点；汇兑损失亦可能侵蚀海外利润。",
+        "【影响分析】若储能业务毛利率长期低于15%，将拉低整体净利率1-2个百分点（注：此为假设性影响测算，未见于公开资料）。"
+      ]
+    },
+    "scores": {
+      "overall_score": 0.96,
+      "structure_score": 1.0,
+      "citation_score": 1.0,
+      "claim_score": 0.8
+    }
+  }
+}

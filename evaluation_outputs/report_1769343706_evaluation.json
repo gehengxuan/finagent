@@ -1,0 +1,66 @@
+{
+  "report_path": "/Users/ghx/Desktop/工作/毕业设计/DeepSearchAgent-Demo-function 2/reports/company_reports/report_1769343706.md",
+  "evaluation": {
+    "structure": {
+      "expected_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "found_sections": [
+        "1. 核心结论与预期差",
+        "2. 公司近况深度跟踪",
+        "3. 核心投资逻辑",
+        "4. 财务质量分析",
+        "5. 调研问题大纲",
+        "6. 风险提示"
+      ],
+      "missing_sections": [],
+      "unexpected_sections": [],
+      "section_coverage": 1.0,
+      "ordered_correctly": true,
+      "financial_table_present": true,
+      "structure_score": 1.0
+    },
+    "citations": {
+      "reference_count": 0,
+      "reference_ids": [],
+      "citation_count": 17,
+      "unique_citation_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "orphan_citations": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "citation_valid_rate": 0.0,
+      "duplicate_adjacent_count": 0,
+      "citation_score": 0.3333
+    },
+    "claims": {
+      "numeric_claim_count": 13,
+      "cited_numeric_claim_count": 10,
+      "uncited_numeric_claim_count": 3,
+      "numeric_claim_citation_rate": 0.7692,
+      "uncited_numeric_claim_examples": [
+        "【问题】1）除已交割项目外，公司是否在2024年半年报或后续公告中列示其他拟处置参股/联营资产？如有，请说明标的名称、持股比例及预计交割时点；如无，是否意味着2024年内无新增剥离计划？2）当前65.7%的资产负债率距64%目标尚有1.7个百分点缺口，假设下半年无新增债务融资，需依赖经营性现金流或资产处置补足，请问公司是否已就该缺口制定分项测算依据？3）管理费用率5.3%为半年度年化值，剔除股权激励费用影响后为4.9%，是否意味着4.8%压缩目标需依赖组织精简而非会计调整？",
+        "6. 风险提示",
+        "1）技术迭代风险：固态电池产业化进度超预期，导致当前液态锂电技术路线价值重估；2）地缘政治风险：欧盟《新电池法》执行趋严及碳关税加征，推高海外建厂合规成本与交付周期；3）客户集中度风险：前五大客户营收占比达68.4%（2024Q3），若某核心客户自建电池产能或转向二供，将冲击短期订单稳定性；4）原材料价格剧烈波动：碳酸锂价格若跌破8万元/吨并持续超3个月，将压制LFP电池盈利弹性；5）回收业务盈利不及预期：邦普循环2024年承诺净利润为22.6亿元，但截至2024Q3实际完成约14.3亿元，达成率63.3%，显著低于时间进度（75%）；其核心再生产品电池级镍钴锰硫酸盐（523型）2024Q3平均销售价格为3.82万元/吨，同比下滑18.6%，环比下降5.2%；碳酸锂（电池级，99.5%）再生料售价为7.94万元/吨，较2024Q2下降6.1%，且已连续两季度低于宁德时代内部采购指导价（8.2万元/吨）；下游主要客户（如容百科技、格林美）反馈2024Q3再生材料采购量缩减12%-15%，并启动第二回收渠道比价；上述数据表明邦普循环盈利承压具有现实基础，2024全年净利润达标面临实质性挑战 [N/A]."
+      ]
+    },
+    "scores": {
+      "overall_score": 0.7538,
+      "structure_score": 1.0,
+      "citation_score": 0.3333,
+      "claim_score": 0.7692
+    }
+  }
+}
